@@ -1,0 +1,140 @@
+/* ============================================================
+   Animations — smooth, professional micro-interactions
+   Loaded last so these cascade without fighting the theme.
+   ============================================================ */
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  33% {
+    transform: translateY(-15px) rotate(2deg);
+  }
+  66% {
+    transform: translateY(10px) rotate(-2deg);
+  }
+}
+
+/* ---------- Animation #1: button hover effects ---------- */
+button {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+button:not(:disabled):hover {
+  transform: translateY(-2px);
+}
+
+button:not(:disabled):active {
+  transform: translateY(0);
+}
+
+.btn-primary,
+.btn-secondary,
+.btn-code-copy {
+  transition:
+    transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    background 0.3s ease,
+    opacity 0.3s ease;
+}
+
+.btn-primary:not(:disabled):hover,
+.btn-secondary:not(:disabled):hover,
+.btn-code-copy:not(:disabled):hover {
+  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.3);
+}
+
+.btn-primary:not(:disabled):active,
+.btn-secondary:not(:disabled):active,
+.btn-code-copy:not(:disabled):active {
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.2);
+}
+
+/* ---------- Animation #2: gentle floating background blobs ---------- */
+.dashboard {
+  position: relative;
+  overflow: hidden;
+}
+
+.dashboard-blobs {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.dashboard-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.22;
+  will-change: transform;
+  animation: float 8s ease-in-out infinite;
+}
+
+.dashboard-blob-1 {
+  width: 300px;
+  height: 300px;
+  top: -80px;
+  left: -80px;
+  background: radial-gradient(circle, rgba(124, 58, 237, 0.6), transparent 70%);
+}
+
+.dashboard-blob-2 {
+  width: 380px;
+  height: 380px;
+  bottom: -120px;
+  right: -100px;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.55), transparent 70%);
+  animation: float 10s ease-in-out infinite;
+  animation-delay: 2s;
+}
+
+.dashboard-blob-3 {
+  width: 200px;
+  height: 200px;
+  top: 55%;
+  right: 15%;
+  background: radial-gradient(circle, rgba(244, 114, 182, 0.5), transparent 70%);
+  animation: float 12s ease-in-out infinite;
+  animation-delay: 4s;
+}
+
+.dashboard > header,
+.dashboard > main {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---------- Animation #3: staggered fade-in on load ---------- */
+/* Uses the shared `fadeInUp` keyframe from index.css. */
+.dashboard-container {
+  animation: fadeInUp 0.6s ease-out both;
+}
+
+.dashboard-header {
+  animation: fadeInUp 0.6s ease-out 0.1s both;
+}
+
+.dashboard-content {
+  animation: fadeInUp 0.6s ease-out 0.2s both;
+}
+
+.dashboard-buttons {
+  animation: fadeInUp 0.6s ease-out 0.3s both;
+}
+
+.status-section {
+  animation: fadeInUp 0.6s ease-out 0.4s both;
+}
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
