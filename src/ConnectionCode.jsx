@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { LuCopy, LuHouse, LuUserCheck, LuUsers } from 'react-icons/lu'
 import { apiPost } from './lib/api.js'
+import { attachToSession } from './lib/attachVideo.js'
+import { consumePendingSession } from './videoStore.js'
 import { useLiveSession } from './live/LiveSessionContext.jsx'
 import './App.css'
 
@@ -97,7 +99,15 @@ const ConnectionCode = ({ onNavigate }) => {
     setLoading(true)
     setError('')
     try {
-      await createGroupSession()
+      const next = await createGroupSession()
+      const pending = consumePendingSession()
+      if (pending && pending.audience === 'group') {
+        try {
+          await attachToSession(next.sessionId, pending)
+        } catch (e) {
+          /* movie attached best-effort */
+        }
+      }
       onNavigate('group-watch')
     } catch (e) {
       setError(e.message)
@@ -114,10 +124,14 @@ const ConnectionCode = ({ onNavigate }) => {
     }
     setLoading(true)
     try {
-      if (isGroup) {
-        await joinGroup(inputCode.trim())
-      } else {
-        await joinCouple(inputCode.trim())
+      const next = isGroup ? await joinGroup(inputCode.trim()) : await joinCouple(inputCode.trim())
+      const pending = consumePendingSession()
+      if (pending && ((isGroup && pending.audience === 'group') || (!isGroup && pending.audience === 'partner'))) {
+        try {
+          await attachToSession(next.sessionId, pending)
+        } catch (e) {
+          /* movie attached best-effort */
+        }
       }
       setSuccess(true)
       setTimeout(() => onNavigate(isGroup ? 'group-watch' : 'couple-watch'), 600)

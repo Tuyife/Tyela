@@ -1,6 +1,7 @@
 let pendingFile = null
 let pendingTitle = ''
 let pendingUrl = ''
+let pendingSession = null
 
 export function setPendingVideo(file, title) {
   pendingFile = file
@@ -16,4 +17,18 @@ export function setPendingLink(url, title) {
 
 export function getPendingVideo() {
   return { file: pendingFile, title: pendingTitle, url: pendingUrl }
+}
+
+export function setPendingSession(info) {
+  pendingSession = { ...info }
+}
+
+export function getPendingSession() {
+  return pendingSession
+}
+
+export function consumePendingSession() {
+  const p = pendingSession
+  pendingSession = null
+  return p
 }

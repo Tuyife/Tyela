@@ -3088,3 +3088,87 @@
   padding: 8px 12px;
   font-size: 12.5px;
 }
+
+/* ============ Movie selection: audience picker ============ */
+.audience-hint {
+  max-width: 720px;
+  margin: 0 auto 14px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: rgba(124, 58, 237, 0.08);
+  border: 1px solid rgba(124, 58, 237, 0.2);
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-align: center;
+}
+
+.audience-picker {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto 22px;
+  text-align: left;
+}
+
+.audience-picker h3 {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: var(--text-primary);
+}
+
+.audience-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.audience-opt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  transition: border-color 0.25s ease, background 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.audience-opt:hover {
+  border-color: rgba(124, 58, 237, 0.4);
+  transform: translateY(-2px);
+}
+
+.audience-opt svg {
+  color: var(--text-secondary);
+  transition: color 0.25s ease;
+}
+
+.audience-opt strong {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.audience-opt small {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.audience-opt-active {
+  background: rgba(124, 58, 237, 0.14);
+  border-color: var(--theme-accent);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.18), var(--shadow-card);
+}
+
+.audience-opt-active svg {
+  color: var(--theme-accent);
+}
+
+@media (max-width: 640px) {
+  .audience-options {
+    grid-template-columns: 1fr;
+  }
+}

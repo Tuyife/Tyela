@@ -1,15 +1,17 @@
 import { useState, useRef } from 'react'
-import { LuLink, LuUpload, LuFolderOpen, LuImages, LuX, LuArrowLeft, LuCheck } from 'react-icons/lu'
-import { setPendingVideo, setPendingLink } from './videoStore.js'
-import { API_BASE } from './lib/api.js'
+import { LuLink, LuUpload, LuFolderOpen, LuImages, LuX, LuArrowLeft, LuCheck, LuUser, LuHeart, LuUsers } from 'react-icons/lu'
+import { setPendingVideo, setPendingLink, setPendingSession } from './videoStore.js'
+import { apiGet, apiPost, API_BASE } from './lib/api.js'
+import { attachToSession } from './lib/attachVideo.js'
 import { useLiveSession } from './live/LiveSessionContext.jsx'
 import { getVideoType } from './utils/video.js'
 import './App.css'
 
 const MovieSelection = ({ onNavigate }) => {
-  const { sessionId, mode: liveMode, setSessionVideo } = useLiveSession()
+  const { sessionId, mode: liveMode, openLiveSession, setSessionVideo } = useLiveSession()
   const isLive = Boolean(sessionId)
   const targetHub = isLive ? (liveMode === 'group' ? 'group-watch' : 'couple-watch') : null
+  const [audience, setAudience] = useState('solo')
   const [mode, setMode] = useState('paste')
   const [showPicker, setShowPicker] = useState(false)
   const [selectedFile, setSelectedFile] = useState(null)
@@ -17,7 +19,7 @@ const MovieSelection = ({ onNavigate }) => {
   const [url, setUrl] = useState('')
   const [title, setTitle] = useState('')
   const [error, setError] = useState('')
-  const [uploading, setUploading] = useState(false)
+  const [starting, setStarting] = useState(false)
   const fileInput = useRef(null)
 
   const handlePasteSelect = () => {
@@ -49,6 +51,43 @@ const MovieSelection = ({ onNavigate }) => {
     }
   }
 
+  const goToAudience = async (payload) => {
+    if (audience === 'solo') {
+      if (payload.file) setPendingVideo(payload.file, payload.title)
+      else if (payload.url) setPendingLink(payload.url, payload.title)
+      onNavigate('watch-session')
+      return
+    }
+
+    setStarting(true)
+    setError('')
+    try {
+      if (audience === 'group') {
+        const created = await apiPost('/api/sessions/create', {})
+        const sessionId = created.sessionId
+        await attachToSession(sessionId, payload)
+        openLiveSession({ sessionId, mode: 'group', code: created.code, role: 'host' })
+        onNavigate('group-watch')
+        return
+      }
+      // partner
+      const active = await apiGet('/api/sessions/active').catch(() => ({ session: null }))
+      if (active.session && active.session.sessionType === 'couple') {
+        const sessionId = active.session._id
+        await attachToSession(sessionId, payload)
+        openLiveSession({ sessionId, mode: 'couple' })
+        onNavigate('couple-watch')
+        return
+      }
+      setPendingSession({ ...payload, audience: 'partner' })
+      localStorage.setItem('tyelaMode', 'couple')
+      onNavigate('connection-code')
+    } catch (e) {
+      setError(e.message)
+      setStarting(false)
+    }
+  }
+
   const handleStartPaste = async () => {
     if (!url) {
       setError('Please enter a video URL')
@@ -65,8 +104,8 @@ const MovieSelection = ({ onNavigate }) => {
       onNavigate(targetHub)
       return
     }
-    setPendingLink(url, title || 'Linked video')
-    onNavigate('watch-session')
+    await goToAudience(info)
+    if (audience !== 'solo') setStarting(false)
   }
 
   const handleStartUpload = async () => {
@@ -77,18 +116,18 @@ const MovieSelection = ({ onNavigate }) => {
     const theTitle = title || selectedFile.name
     if (isLive) {
       setError('')
-      setUploading(true)
+      setStarting(true)
       try {
         const form = new FormData()
         form.append('video', selectedFile)
         form.append('title', theTitle)
-        const res = await fetch(`${API_BASE}/api/sessions/${sessionId}/upload`, {
+        const upRes = await fetch(`${API_BASE}/api/sessions/${sessionId}/upload`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${localStorage.getItem('tyelaToken') || ''}` },
           body: form
         })
-        const json = await res.json().catch(() => ({}))
-        if (!res.ok) throw new Error(json.error || 'Upload failed')
+        const json = await upRes.json().catch(() => ({}))
+        if (!upRes.ok) throw new Error(json.error || 'Upload failed')
         if (setSessionVideo) {
           await setSessionVideo({ title: theTitle, url: json.video.url, type: 'upload', duration: 0 })
         }
@@ -96,22 +135,60 @@ const MovieSelection = ({ onNavigate }) => {
       } catch (e) {
         setError(e.message)
       } finally {
-        setUploading(false)
+        setStarting(false)
       }
       return
     }
-    setPendingVideo(selectedFile, theTitle)
-    onNavigate('watch-session')
+    await goToAudience({ title: theTitle, file: selectedFile, type: 'upload' })
+    if (audience !== 'solo') setStarting(false)
   }
+
+  const audienceOptions = [
+    { id: 'solo', label: 'Just me', icon: LuUser, hint: 'Watch on my own screen' },
+    { id: 'partner', label: 'My partner', icon: LuHeart, hint: 'Sync with your partner' },
+    { id: 'group', label: 'Group', icon: LuUsers, hint: 'Host a watch party' }
+  ]
 
   return (
     <div className="movie-selection">
       <button className="back-home" onClick={() => onNavigate('')}>
         <LuArrowLeft size={14} /> Back to home
       </button>
+
+      {isLive ? (
+        <p className="audience-hint">
+          Watching in a {liveMode === 'group' ? 'group' : 'couple'} session — the movie plays for
+          everyone in sync.
+        </p>
+      ) : (
+        <div className="audience-picker">
+          <h3>Who&apos;s watching?</h3>
+          <div className="audience-options">
+            {audienceOptions.map((opt) => {
+              const Icon = opt.icon
+              const active = audience === opt.id
+              return (
+                <div
+                  key={opt.id}
+                  className={`audience-opt ${active ? 'audience-opt-active' : ''}`}
+                  onClick={() => setAudience(opt.id)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => e.key === 'Enter' && setAudience(opt.id)}
+                >
+                  <Icon size={22} />
+                  <strong>{opt.label}</strong>
+                  <small>{opt.hint}</small>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="option-cards">
-        <div 
-          className="option-card paste-card" 
+        <div
+          className="option-card paste-card"
           onClick={handlePasteSelect}
           role="button"
           tabIndex={0}
@@ -129,8 +206,8 @@ const MovieSelection = ({ onNavigate }) => {
           </div>
         </div>
 
-        <div 
-          className="option-card upload-card" 
+        <div
+          className="option-card upload-card"
           onClick={handleUploadSelect}
           role="button"
           tabIndex={0}
@@ -157,16 +234,16 @@ const MovieSelection = ({ onNavigate }) => {
           {error && <p className="error">{error}</p>}
 
           <div className="input-group">
-            <input 
-              type="url" 
-              placeholder="https://www.youtube.com/watch?v=..." 
+            <input
+              type="url"
+              placeholder="https://www.youtube.com/watch?v=..."
               id="movie-url"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               autoComplete="url"
             />
-            <button className="btn-primary" onClick={handleStartPaste}>
-              Start watching
+            <button className="btn-primary" onClick={handleStartPaste} disabled={starting}>
+              {starting ? 'Starting…' : 'Start watching'}
             </button>
           </div>
 
@@ -201,8 +278,8 @@ const MovieSelection = ({ onNavigate }) => {
             <input type="text" placeholder="Video title" value={title} onChange={(e) => setTitle(e.target.value)} />
           </div>
 
-          <button className="btn-primary" onClick={handleStartUpload} disabled={uploading}>
-            {uploading ? 'Uploading…' : 'Upload and start'}
+          <button className="btn-primary" onClick={handleStartUpload} disabled={starting}>
+            {starting ? 'Uploading…' : 'Upload and start'}
           </button>
           <button className="btn-secondary" onClick={() => setMode('paste')}>
             Use a link instead

@@ -2,6 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useUser } from '../UserContext.jsx'
 import { connectSocket, getSocket } from '../socket.js'
 import { apiGet, apiPost } from '../lib/api.js'
+import { attachToSession } from '../lib/attachVideo.js'
+import { consumePendingSession } from '../videoStore.js'
 
 const LiveSessionContext = createContext(null)
 
@@ -134,7 +136,7 @@ export const LiveSessionProvider = ({ children, navigate }) => {
   useEffect(() => {
     const s = getSocket()
     if (!s || sessionId) return undefined
-    const onPaired = (data) => {
+    const onPaired = async (data) => {
       if (!data || !data.sessionId) return
       if (handledPairRef.current === data.sessionId) return
       handledPairRef.current = data.sessionId
@@ -143,6 +145,14 @@ export const LiveSessionProvider = ({ children, navigate }) => {
         mode: data.mode || 'couple',
         partner: data.partner
       })
+      const pending = consumePendingSession()
+      if (pending && pending.audience === 'partner') {
+        try {
+          await attachToSession(data.sessionId, pending)
+        } catch (e) {
+          /* movie attached best-effort */
+        }
+      }
       if (navigate) navigate('couple-watch')
     }
     s.on('paired', onPaired)
