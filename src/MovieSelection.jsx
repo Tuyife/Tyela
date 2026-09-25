@@ -101,6 +101,14 @@ const MovieSelection = ({ onNavigate }) => {
         onNavigate('couple-watch')
         return
       }
+      // already paired but no active couple session - resume/create it automatically
+      const start = await apiPost('/api/connection/start', {}).catch(() => null)
+      if (start && start.sessionId) {
+        await attachToSession(start.sessionId, payload)
+        openLiveSession({ sessionId: start.sessionId, mode: 'couple', partner: start.partner })
+        onNavigate('couple-watch')
+        return
+      }
       setPendingSession({ ...payload, audience: 'partner' })
       localStorage.setItem('tyelaMode', 'couple')
       onNavigate('connection-code')

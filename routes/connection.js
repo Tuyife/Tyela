@@ -100,6 +100,58 @@ router.post('/connect', auth, async (req, res) => {
   }
 })
 
+// Start (or resume) a couple session with an already-connected partner - no code needed
+router.post('/start', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId).select('partnerId isConnectedWithPartner')
+    if (!user || !user.isConnectedWithPartner || !user.partnerId) {
+      return res
+        .status(400)
+        .json({ error: 'You are not connected to a partner yet. Ask for their code to pair first.' })
+    }
+
+    const partnerId = user.partnerId.toString()
+    const selfId = req.userId.toString()
+    const partner = await User.findById(partnerId).select('displayName avatarUrl')
+    if (!partner) {
+      return res.status(404).json({ error: 'Partner not found' })
+    }
+
+    const coupleMatch = {
+      sessionType: 'couple',
+      status: { $in: ['active', 'paused'] },
+      $or: [
+        { 'couple.user1Id': req.userId, 'couple.user2Id': user.partnerId },
+        { 'couple.user1Id': user.partnerId, 'couple.user2Id': req.userId }
+      ]
+    }
+    let session = await WatchSession.findOne(coupleMatch).sort({ createdAt: -1 })
+
+    if (!session) {
+      const [u1, u2] = [selfId, partnerId].sort()
+      session = new WatchSession({
+        sessionType: 'couple',
+        couple: { user1Id: u1, user2Id: u2 },
+        status: 'active',
+        playbackState: { isPlaying: false, currentTime: 0, lastUpdated: new Date() }
+      })
+      await session.save()
+    } else if (session.status === 'paused') {
+      session.status = 'active'
+      await session.save()
+    }
+
+    res.json({
+      sessionId: session._id,
+      partner: { id: partner._id, name: partner.displayName, avatarUrl: partner.avatarUrl || '' },
+      mode: 'couple'
+    })
+  } catch (error) {
+    console.error('Start couple session error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
 // Get partner info
 router.get('/partner', auth, async (req, res) => {
   try {

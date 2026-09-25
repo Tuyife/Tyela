@@ -44,7 +44,7 @@ const Dashboard = ({ onNavigate }) => {
   const handleWatchTogether = async () => {
     try {
       const data = await apiGet('/api/sessions/active')
-      if (data.session) {
+      if (data.session && data.session.sessionType === 'couple') {
         const s = data.session
         openLiveSession({
           sessionId: s._id,
@@ -57,7 +57,18 @@ const Dashboard = ({ onNavigate }) => {
         return
       }
     } catch (error) {
-      /* fall through to get a new code */
+      /* fall through */
+    }
+    // Already paired: resume or create the couple session automatically
+    try {
+      const start = await apiPost('/api/connection/start', {})
+      if (start && start.sessionId) {
+        openLiveSession({ sessionId: start.sessionId, mode: 'couple', partner: start.partner })
+        onNavigate('couple-watch')
+        return
+      }
+    } catch (error) {
+      /* fall through to code entry */
     }
     onNavigate('connection-code')
   }
