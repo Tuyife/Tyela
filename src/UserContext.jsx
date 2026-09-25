@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react'
 import { connectSocket, disconnectSocket } from './socket.js'
+import { API_BASE } from './lib/api.js'
 
 const UserContext = createContext(null)
 
@@ -60,9 +61,9 @@ function resizeImage(file, maxSize) {
 
 async function postAuth(path, body) {
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 4000)
+  const timer = setTimeout(() => controller.abort(), 15000)
   try {
-    const res = await fetch(`/api/auth/${path}`, {
+    const res = await fetch(`${API_BASE}/api/auth/${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -85,7 +86,7 @@ async function postAuth(path, body) {
 
 async function checkTokenValid(token) {
   try {
-    const res = await fetch('/api/auth/verify-token', {
+    const res = await fetch(`${API_BASE}/api/auth/verify-token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token })
@@ -194,7 +195,7 @@ export const UserProvider = ({ children }) => {
     checkTokenValid(token).then((valid) => {
       if (cancelled || valid === null) return
       if (valid) {
-        fetch('/api/profile', { headers: { Authorization: `Bearer ${token}` } })
+        fetch(`${API_BASE}/api/profile`, { headers: { Authorization: `Bearer ${token}` } })
           .then((res) => (res.ok ? res.json() : null))
           .then((json) => {
             if (cancelled || !json || !json.user) return
@@ -251,7 +252,7 @@ export const UserProvider = ({ children }) => {
         form.append('bio', nextUser.bio || '')
         form.append('themeColor', nextUser.themeColor || 'purple')
         if (avatarFile) form.append('avatar', avatarFile)
-        const res = await fetch('/api/profile/update', {
+        const res = await fetch(`${API_BASE}/api/profile/update`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}` },
           body: form
