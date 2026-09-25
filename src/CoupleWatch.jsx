@@ -1,25 +1,60 @@
-import { LuArrowLeft, LuFilm } from 'react-icons/lu'
+import { LuArrowLeft, LuFilm, LuSend } from 'react-icons/lu'
 import { useLiveSession } from './live/LiveSessionContext.jsx'
 import { useUser } from './UserContext.jsx'
+import { apiPost } from './lib/api.js'
 import Avatar from './components/Avatar.jsx'
 import LivePlayer from './components/LivePlayer.jsx'
 import LiveChat from './components/LiveChat.jsx'
+import ConnectionStatus from './components/ConnectionStatus.jsx'
+import { useNotifications } from './context/NotificationContext.jsx'
 import './App.css'
 
 const CoupleWatch = ({ onNavigate }) => {
   const { user } = useUser()
-  const { session, partner, participants, video, connected, leaveSession } = useLiveSession()
+  const { notify } = useNotifications()
+  const {
+    session,
+    partner,
+    participants,
+    video,
+    connected,
+    playback,
+    offlineDeadline,
+    leaveSession
+  } = useLiveSession()
 
   const partnerId = partner ? partner.id : null
-  const partnerOnline = participants.some((p) => partnerId && p.id === partnerId)
+  const partnerOnline = partnerId ? participants.some((p) => p.id === partnerId) : connected
 
   const handleLeave = () => {
     leaveSession()
     onNavigate('dashboard')
   }
 
+  const handleInvite = async () => {
+    if (!session || !session.sessionId || !partner || !partner.id) return
+    try {
+      await apiPost('/api/invites/send', {
+        toUserId: partner.id,
+        sessionId: session.sessionId,
+        currentPlaybackTime: playback && playback.currentTime ? playback.currentTime : 0,
+        title: video ? video.title : undefined
+      })
+      notify(`Resume invite sent to ${partner.name}`, 'success')
+    } catch (e) {
+      notify(e.message || 'Could not send invite', 'error')
+    }
+  }
+
+  const partnerOnlineEffective = partnerOnline
+
   return (
     <div className="couple-watch">
+      <ConnectionStatus
+        isOnline={partnerOnlineEffective}
+        partnerName={partner ? partner.name : 'Your partner'}
+        deadline={offlineDeadline}
+      />
       <div className="watch-header">
         <div className="partner-info">
           <Avatar src={user.avatarUrl} name={user.displayName} size={34} />
@@ -30,6 +65,11 @@ const CoupleWatch = ({ onNavigate }) => {
           <span className="conn-hint">
             {connected ? 'Connected' : 'Connecting...'}
           </span>
+          {video && partner && (
+            <button className="control-btn" onClick={handleInvite} title="Send a resume invite to your partner">
+              <LuSend size={14} /> Invite to resume
+            </button>
+          )}
           <button className="control-btn" onClick={handleLeave}>
             <LuArrowLeft size={14} /> Leave
           </button>

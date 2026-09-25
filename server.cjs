@@ -8,11 +8,14 @@ const authRoutes = require('./routes/auth.js')
 const connectionRoutes = require('./routes/connection.js')
 const sessionRoutes = require('./routes/sessions.js')
 const profileRoutes = require('./routes/profile.js')
+const inviteRoutes = require('./routes/invites.js')
+const historyRoutes = require('./routes/history.js')
 const multer = require('multer')
 const fs = require('fs')
 const path = require('path')
 const dotenv = require('dotenv')
 const { WatchSession } = require('./models/User.js')
+const Invite = require('./models/Invite.js')
 const { setIO } = require('./utils/io.js')
 
 dotenv.config()
@@ -48,6 +51,8 @@ app.use('/api/auth', authRoutes)
 app.use('/api/connection', connectionRoutes)
 app.use('/api/sessions', sessionRoutes)
 app.use('/api/profile', profileRoutes)
+app.use('/api/invites', inviteRoutes)
+app.use('/api/history', historyRoutes)
 
 // Multer + file filter error handler
 app.use((err, req, res, next) => {
@@ -89,7 +94,7 @@ function updateDb(sessionId, update) {
   return WatchSession.findByIdAndUpdate(sessionId, update).catch(() => {})
 }
 
-io.on('connection', async (socket) => {
+io.on('connection', (socket) => {
   // Authenticate socket with JWT
   const token = socket.handshake.auth && socket.handshake.auth.token
   let userId = null
@@ -106,10 +111,14 @@ io.on('connection', async (socket) => {
   socket.userId = userId
   socket.sessionId = null
   socket.join(`user:${userId}`)
-
-  const user = await UserProfile(userId)
-  socket.userName = user.name
-  socket.avatarUrl = user.avatarUrl
+  socket.userName = 'User'
+  socket.avatarUrl = null
+  UserProfile(userId)
+    .then((user) => {
+      socket.userName = user.name
+      socket.avatarUrl = user.avatarUrl
+    })
+    .catch(() => {})
 
   socket.on('join-session', ({ sessionId }) => {
     if (!sessionId) return
@@ -187,20 +196,68 @@ io.on('connection', async (socket) => {
     io.to(`session:${sessionId}`).emit('message-received', msg)
   })
 
+  socket.on('user-typing', () => {
+    const room = socket.sessionId ? `session:${socket.sessionId}` : null
+    if (!room) return
+    socket.to(room).emit('partner-typing', { userId, name: socket.userName, avatarUrl: socket.avatarUrl })
+  })
+
+  socket.on('user-stop-typing', () => {
+    const room = socket.sessionId ? `session:${socket.sessionId}` : null
+    if (!room) return
+    socket.to(room).emit('partner-stopped-typing', { userId })
+  })
+
   function closeSession() {
-    if (socket.sessionId) {
-      const sessionId = socket.sessionId
-      socket.leave(`session:${sessionId}`)
-      removePresence(sessionId, userId)
-      broadcastPresence(sessionId)
-      socket.sessionId = null
-    }
+    const sessionId = socket.sessionId
+    if (!sessionId) return
+    socket.leave(`session:${sessionId}`)
+    removePresence(sessionId, userId)
+    broadcastPresence(sessionId)
+    socket.sessionId = null
+    if (sessionId) handlePartnerGone(sessionId, userId)
   }
 
   socket.on('disconnect', () => {
     closeSession()
   })
 })
+
+// When a user leaves a couple session, pause it for the remaining partner,
+// let them know, and drop a "continue watching" invite at the saved position.
+async function handlePartnerGone(sessionId, goneUserId) {
+  try {
+    const session = await WatchSession.findById(sessionId).select(
+      'sessionType couple group video playbackState status'
+    )
+    if (!session || session.status === 'ended' || session.status === 'cancelled') return
+    const room = sessionUsers.get(sessionId)
+    const remaining = room && room.size ? Array.from(room.values()).map((u) => u.id) : []
+    if (remaining.length !== 1 || session.sessionType !== 'couple') return
+
+    session.status = 'paused'
+    session.pausedAt = new Date()
+    if (session.playbackState) session.playbackState.isPlaying = false
+    await session.save()
+
+    io.to(`session:${sessionId}`).emit('session-paused', { reason: 'partner-disconnected', sessionId })
+    io.to(`session:${sessionId}`).emit('partner-offline', { timeoutMinutes: 10 })
+
+    if (session.video && session.video.url) {
+      await Invite.create({
+        fromUserId: goneUserId,
+        toUserId: remaining[0],
+        sessionId,
+        sessionType: 'couple',
+        sessionTitle: (session.video.title || 'Movie night with partner').slice(0, 80),
+        currentPlaybackTime: session.playbackState ? session.playbackState.currentTime : 0,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
+      })
+    }
+  } catch (error) {
+    /* ignore partner-gone errors */
+  }
+}
 
 async function UserProfile(userId) {
   try {

@@ -227,6 +227,107 @@ router.get('/active', auth, async (req, res) => {
   }
 })
 
+// Pause a session (user or partner-offline)
+router.post('/:id/pause', auth, async (req, res) => {
+  try {
+    const { id } = req.params
+    const reason = req.body && req.body.reason ? req.body.reason : 'user-pause'
+    const session = await WatchSession.findById(id)
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' })
+    }
+    if (!isMember(session, req.userId)) {
+      return res.status(403).json({ error: 'Not a member of this session' })
+    }
+
+    const pausedAt = new Date()
+    session.status = 'paused'
+    session.pausedAt = pausedAt
+    session.playbackState = {
+      isPlaying: false,
+      currentTime: session.playbackState.currentTime || 0,
+      lastUpdated: pausedAt
+    }
+    await session.save()
+
+    const io = getIO()
+    if (io) {
+      io.to(`session:${id}`).emit('session-paused', { reason, sessionId: id, pausedAt })
+    }
+
+    res.json({ status: 'paused', sessionId: id, pausedAt })
+  } catch (error) {
+    console.error('Pause session error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// Resume a session at a playback position
+router.post('/:id/resume', auth, async (req, res) => {
+  try {
+    const { id } = req.params
+    const currentTime = (req.body && req.body.currentTime) || 0
+    const session = await WatchSession.findById(id)
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' })
+    }
+    if (!isMember(session, req.userId)) {
+      return res.status(403).json({ error: 'Not a member of this session' })
+    }
+
+    const resumedAt = new Date()
+    session.status = 'active'
+    session.resumedAt = resumedAt
+    session.playbackState = { isPlaying: true, currentTime, lastUpdated: resumedAt }
+    await session.save()
+
+    const io = getIO()
+    if (io) {
+      io.to(`session:${id}`).emit('session-resumed', { sessionId: id, resumedAt, currentTime })
+      io.to(`session:${id}`).emit('playback-update', { isPlaying: true, currentTime })
+    }
+
+    res.json({ status: 'resumed', sessionId: id, resumedAt, currentTime })
+  } catch (error) {
+    console.error('Resume session error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// End a session
+router.post('/:id/end', auth, async (req, res) => {
+  try {
+    const { id } = req.params
+    const session = await WatchSession.findById(id)
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' })
+    }
+    if (!isMember(session, req.userId)) {
+      return res.status(403).json({ error: 'Not a member of this session' })
+    }
+
+    const endedAt = new Date()
+    session.status = 'ended'
+    session.endedAt = endedAt
+    session.playbackState = {
+      isPlaying: false,
+      currentTime: session.playbackState.currentTime || 0,
+      lastUpdated: endedAt
+    }
+    await session.save()
+
+    const io = getIO()
+    if (io) {
+      io.to(`session:${id}`).emit('session-ended', { sessionId: id, endedAt })
+    }
+
+    res.json({ status: 'ended', sessionId: id, endedAt })
+  } catch (error) {
+    console.error('End session error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
 // Watch history for the current user (couple + group), most recent first
 router.get('/history', auth, async (req, res) => {
   try {

@@ -45,6 +45,9 @@ const WatchSessionSchema = new Schema(
       lastUpdated: { type: Date, default: Date.now }
     },
     status: { type: String, enum: ['active', 'paused', 'ended', 'cancelled'], default: 'active' },
+    pausedAt: { type: Date },
+    resumedAt: { type: Date },
+    expiresAt: { type: Date, default: () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) },
     messages: [
       {
         senderId: { type: Schema.Types.ObjectId, ref: 'User' },

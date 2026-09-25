@@ -1,16 +1,11 @@
 import { useState, useEffect } from 'react'
-import { LuHouse, LuFilm, LuUsers, LuUnplug, LuRefreshCw, LuHeart } from 'react-icons/lu'
+import { LuHouse, LuUsers, LuUnplug } from 'react-icons/lu'
 import { useUser } from './UserContext.jsx'
 import { useLiveSession } from './live/LiveSessionContext.jsx'
 import { apiGet, apiPost } from './lib/api.js'
 import Avatar from './components/Avatar.jsx'
+import WatchHistory from './components/WatchHistory.jsx'
 import './App.css'
-
-const formatWhen = (value) => {
-  if (!value) return '—'
-  const d = new Date(value)
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
-}
 
 const Dashboard = ({ onNavigate }) => {
   const { user } = useUser()
@@ -166,53 +161,7 @@ const Dashboard = ({ onNavigate }) => {
         )}
 
         <section className="history-section dashboard-buttons">
-          <div className="history-head">
-            <h2>Watch history</h2>
-            <span className="history-count">{history.length}</span>
-          </div>
-
-          {history.length === 0 ? (
-            <div className="history-empty">
-              <LuFilm size={22} />
-              <p>No watch nights yet. Start one and your movies together will show up here.</p>
-            </div>
-          ) : (
-            <ul className="history-list">
-              {history.map((item) => (
-                <li className="history-item" key={item.id}>
-                  <span className="history-icon">
-                    {item.sessionType === 'couple' ? <LuHeart size={15} /> : <LuUsers size={15} />}
-                  </span>
-                  <div className="history-meta">
-                    <strong className="history-title">
-                      {item.video && item.video.title
-                        ? item.video.title
-                        : item.sessionType === 'couple'
-                          ? 'Movie night with partner'
-                          : 'Group watch'}
-                    </strong>
-                    <span className="history-sub">
-                      {item.sessionType === 'couple' && item.partner
-                        ? `With ${item.partner.name}`
-                        : `${item.participantCount || 1} in room`}
-                      {item.video && item.video.title ? `  ·  ${item.video.type}` : ''}
-                      {'  ·  '}
-                      {formatWhen(item.startedAt)}
-                    </span>
-                  </div>
-                  <div className="history-actions">
-                    <span className={`history-badge history-badge-${item.status}`}>{item.status}</span>
-                    <button
-                      className="control-btn history-resume"
-                      onClick={() => handleResume(item)}
-                    >
-                      <LuRefreshCw size={13} /> Reopen
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+          <WatchHistory sessions={history} onResume={handleResume} />
         </section>
 
         <div className="dashboard-actions">

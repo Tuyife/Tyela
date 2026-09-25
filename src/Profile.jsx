@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { LuArrowLeft, LuCamera, LuCheck, LuX } from 'react-icons/lu'
 import { useUser, THEME_COLORS } from './UserContext.jsx'
 import Avatar from './components/Avatar.jsx'
+import { isMuted, toggleMute } from './utils/notificationSound.js'
 import './App.css'
 
 const THEME_LABEL = {
@@ -21,6 +22,7 @@ const Profile = ({ onNavigate }) => {
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState('')
+  const [muted, setMuted] = useState(() => isMuted())
   const fileInputRef = useRef(null)
 
   const showToast = (message) => {
@@ -140,6 +142,25 @@ const Profile = ({ onNavigate }) => {
               ))}
             </div>
             <p className="theme-hint">Applies to buttons, accents and highlights</p>
+          </div>
+
+          <div className="theme-section notif-section">
+            <label>Notifications</label>
+            <div className="notif-row">
+              <div className="notif-copy">
+                <strong>Message sounds</strong>
+                <p className="theme-hint">Play a short beep when a new message arrives</p>
+              </div>
+              <button
+                type="button"
+                className={`toggle ${muted ? '' : 'toggle-on'}`}
+                aria-pressed={!muted}
+                aria-label="Toggle message sounds"
+                onClick={() => setMuted(toggleMute())}
+              >
+                <span className="toggle-knob" />
+              </button>
+            </div>
           </div>
 
           <button type="submit" className="btn-primary" disabled={saving}>

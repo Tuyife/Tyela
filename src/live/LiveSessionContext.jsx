@@ -4,6 +4,8 @@ import { connectSocket, getSocket } from '../socket.js'
 import { apiGet, apiPost } from '../lib/api.js'
 import { attachToSession } from '../lib/attachVideo.js'
 import { consumePendingSession } from '../videoStore.js'
+import { playMessageBeep } from '../utils/notificationSound.js'
+import { useNotifications } from '../context/NotificationContext.jsx'
 
 const LiveSessionContext = createContext(null)
 
@@ -18,12 +20,24 @@ function loadPersisted() {
 
 export const LiveSessionProvider = ({ children, navigate }) => {
   const { user, isLoggedIn } = useUser()
+  const { notify } = useNotifications()
   const [session, setSession] = useState(loadPersisted)
   const [messages, setMessages] = useState([])
   const [participants, setParticipants] = useState([])
   const [video, setVideo] = useState(null)
   const [playback, setPlayback] = useState({ isPlaying: false, currentTime: 0 })
   const [connected, setConnected] = useState(false)
+  const [partnerTyping, setPartnerTyping] = useState(false)
+  const [partnerOnline, setPartnerOnline] = useState(true)
+  const [offlineDeadline, setOfflineDeadline] = useState(null)
+  const [sessionPaused, setSessionPaused] = useState(false)
+  const [incomingInvite, setIncomingInvite] = useState(null)
+  const typingTimerRef = useRef(null)
+  const playbackRef = useRef(playback)
+
+  useEffect(() => {
+    playbackRef.current = playback
+  }, [playback])
 
   const sessionId = session ? session.sessionId : null
 
@@ -52,6 +66,11 @@ export const LiveSessionProvider = ({ children, navigate }) => {
       setMessages([])
       setVideo(null)
       setPlayback({ isPlaying: false, currentTime: 0 })
+      setPartnerTyping(false)
+      setPartnerOnline(true)
+      setOfflineDeadline(null)
+      setSessionPaused(false)
+      setIncomingInvite(null)
       fetchSession(next.sessionId)
     },
     [fetchSession]
@@ -59,12 +78,20 @@ export const LiveSessionProvider = ({ children, navigate }) => {
 
   const leaveSession = useCallback(() => {
     const s = getSocket()
-    if (s && sessionId) s.emit('leave-session')
+    if (s && sessionId) {
+      s.emit('user-stop-typing')
+      s.emit('leave-session')
+    }
     setSession(null)
     setMessages([])
     setParticipants([])
     setVideo(null)
     setPlayback({ isPlaying: false, currentTime: 0 })
+    setPartnerTyping(false)
+    setPartnerOnline(true)
+    setOfflineDeadline(null)
+    setSessionPaused(false)
+    setIncomingInvite(null)
     try {
       localStorage.removeItem('tyelaLive')
     } catch (error) {
@@ -107,7 +134,13 @@ export const LiveSessionProvider = ({ children, navigate }) => {
 
     const handlers = {
       'presence-update': (list) => setParticipants(list || []),
-      'message-received': (msg) => setMessages((prev) => [...prev, msg].slice(-200)),
+      'message-received': (msg) => {
+        setMessages((prev) => [...prev, msg].slice(-200))
+        if (msg && msg.senderName && msg.senderId !== user.id) {
+          playMessageBeep()
+          notify(`New message from ${msg.senderName}`, 'info')
+        }
+      },
       'session-video': (data) => setVideo(data && data.video ? data.video : null),
       'playback-update': (data) =>
         setPlayback((prev) => ({ ...prev, isPlaying: !!data.isPlaying, currentTime: data.currentTime || 0 })),
@@ -116,6 +149,41 @@ export const LiveSessionProvider = ({ children, navigate }) => {
         if (data.video) setVideo(data.video)
         if (data.playback) setPlayback(data.playback)
         if (Array.isArray(data.messages)) setMessages(data.messages)
+      },
+      'partner-typing': () => {
+        setPartnerTyping(true)
+        if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
+        typingTimerRef.current = setTimeout(() => setPartnerTyping(false), 3000)
+      },
+      'partner-stopped-typing': () => {
+        if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
+        setPartnerTyping(false)
+      },
+      'session-paused': (data) => {
+        setSessionPaused(true)
+        if (data && data.reason === 'partner-disconnected') {
+          setPartnerOnline(false)
+          setOfflineDeadline(Date.now() + 10 * 60 * 1000)
+          notify('Partner disconnected — waiting to reconnect...', 'warning', 6000)
+        }
+      },
+      'session-resumed': () => setSessionPaused(false),
+      'session-ended': () => {
+        setSessionPaused(false)
+        setOfflineDeadline(null)
+      },
+      'partner-offline': (data) => {
+        setPartnerOnline(false)
+        setOfflineDeadline(Date.now() + (data && data.timeoutMinutes ? data.timeoutMinutes : 10) * 60 * 1000)
+        setSessionPaused(true)
+        notify('Partner disconnected — pausing the movie', 'warning', 6000)
+        const s = getSocket()
+        if (s && sessionId) {
+          s.emit('pause-video', { currentTime: playbackRef.current ? playbackRef.current.currentTime || 0 : 0 })
+        }
+      },
+      'invite-to-watch': (data) => {
+        if (data) setIncomingInvite(data)
       }
     }
     Object.entries(handlers).forEach(([event, fn]) => s.on(event, fn))
@@ -158,6 +226,56 @@ export const LiveSessionProvider = ({ children, navigate }) => {
     s.on('paired', onPaired)
     return () => s.off('paired', onPaired)
   }, [sessionId, openLiveSession, navigate])
+
+  // Partner back online: auto-resume the shared playback
+  useEffect(() => {
+    if (!sessionId || mode !== 'couple') return
+    const partnerId = session && session.partner ? session.partner.id : null
+    const online = partnerId ? participants.some((p) => p.id === partnerId) : partnerOnline
+
+    if (online && !partnerOnline) {
+      setPartnerOnline(true)
+      setOfflineDeadline(null)
+      setSessionPaused(false)
+      clearTimeout(typingTimerRef.current)
+      notify('Partner is back — resuming the movie', 'success')
+      const cur = playbackRef.current ? playbackRef.current.currentTime || 0 : 0
+      apiPost(`/api/sessions/${sessionId}/resume`, { currentTime: cur }).catch(() => {})
+      const s = getSocket()
+      if (s) s.emit('play-video', { currentTime: cur })
+    }
+  }, [participants, sessionId, mode, session, partnerOnline, notify])
+
+  // Offline countdown: end the session if the partner doesn't return in time
+  useEffect(() => {
+    if (!offlineDeadline) return undefined
+    const timer = setInterval(() => {
+      if (Date.now() >= offlineDeadline) {
+        setOfflineDeadline(null)
+        setSessionPaused(false)
+        notify("Session expired — your partner didn't return in time", 'warning', 5000)
+        const sid = sessionId
+        if (sid) apiPost(`/api/sessions/${sid}/end`, {}).catch(() => {})
+        leaveSession()
+        if (navigate) navigate('dashboard')
+      }
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [offlineDeadline, notify, leaveSession, sessionId, navigate])
+
+  const emitTypingStart = useCallback(() => {
+    const s = getSocket()
+    if (!s || !sessionId) return
+    s.emit('user-typing')
+  }, [sessionId])
+
+  const emitTypingStop = useCallback(() => {
+    const s = getSocket()
+    if (!s || !sessionId) return
+    s.emit('user-stop-typing')
+  }, [sessionId])
+
+  const clearInvite = useCallback(() => setIncomingInvite(null), [])
 
   const createGroupSession = useCallback(async () => {
     const data = await apiPost('/api/sessions/create', {})
@@ -246,6 +364,11 @@ export const LiveSessionProvider = ({ children, navigate }) => {
       video,
       playback,
       connected,
+      partnerTyping,
+      partnerOnline,
+      offlineDeadline,
+      sessionPaused,
+      incomingInvite,
       openLiveSession,
       leaveSession,
       createGroupSession,
@@ -253,7 +376,10 @@ export const LiveSessionProvider = ({ children, navigate }) => {
       joinGroup,
       setSessionVideo,
       sendMessage,
-      updatePlayback
+      updatePlayback,
+      emitTypingStart,
+      emitTypingStop,
+      clearInvite
     }),
     [
       session,
@@ -263,6 +389,11 @@ export const LiveSessionProvider = ({ children, navigate }) => {
       video,
       playback,
       connected,
+      partnerTyping,
+      partnerOnline,
+      offlineDeadline,
+      sessionPaused,
+      incomingInvite,
       openLiveSession,
       leaveSession,
       createGroupSession,
@@ -270,7 +401,10 @@ export const LiveSessionProvider = ({ children, navigate }) => {
       joinGroup,
       setSessionVideo,
       sendMessage,
-      updatePlayback
+      updatePlayback,
+      emitTypingStart,
+      emitTypingStop,
+      clearInvite
     ]
   )
 

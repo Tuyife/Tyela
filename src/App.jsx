@@ -17,6 +17,8 @@ import WatchSession from './WatchSession.jsx'
 import Profile from './Profile.jsx'
 import InfoPage from './InfoPage.jsx'
 import BackgroundSlideshow from './components/BackgroundSlideshow.jsx'
+import ResumeInviteOverlay from './components/ResumeInviteOverlay.jsx'
+import { NotificationProvider } from './context/NotificationContext.jsx'
 import { LiveSessionProvider } from './live/LiveSessionContext.jsx'
 import './App.css'
 
@@ -53,9 +55,10 @@ const AppRoutes = () => {
   const navigate = useNavigate()
 
   return (
-    <LiveSessionProvider navigate={navigate}>
-      <Routes>
-      <Route path="/" element={<Landing onNavigate={(page) => navigate(`/${page}`)} />} />
+    <NotificationProvider>
+      <LiveSessionProvider navigate={navigate}>
+        <Routes>
+        <Route path="/" element={<Landing onNavigate={(page) => navigate(`/${page}`)} />} />
       <Route path="login" element={<LoginScreen onNavigate={(page) => navigate(`/${page}`)} />} />
       <Route path="signup" element={<SignupScreen onNavigate={(page) => navigate(`/${page}`)} />} />
       <Route path="info/:topic" element={<InfoRoute onNavigate={(page) => navigate(`/${page}`)} />} />
@@ -140,7 +143,9 @@ const AppRoutes = () => {
         }
       />
       </Routes>
-    </LiveSessionProvider>
+        <ResumeInviteOverlay onNavigate={(page) => navigate(`/${page}`)} />
+      </LiveSessionProvider>
+    </NotificationProvider>
   )
 }
 
