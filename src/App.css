@@ -3693,3 +3693,60 @@
     background-attachment: scroll;
   }
 }
+
+/* ============ Watch screens on phones ============ */
+@media (max-width: 640px) {
+  .couple-watch,
+  .group-watch,
+  .watch-session {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  /* Couple header: keep the two partners on one line, push the actions
+     onto their own full-width row so nothing overflows the phone width. */
+  .couple-watch .watch-header {
+    flex-wrap: wrap;
+    justify-content: space-between;
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .couple-watch .watch-header-actions {
+    order: 3;
+    width: 100%;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .conn-hint {
+    display: none;
+  }
+
+  .partner-info > span:not(.status-dot) {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .watch-toolbar {
+    flex-wrap: wrap;
+    padding: 10px 12px;
+  }
+
+  .video-controls {
+    flex-wrap: wrap;
+  }
+
+  /* Let the 16:9 frame follow the phone width instead of forcing a tall
+     min-height box that shoves the chat off screen. */
+  .session-player {
+    flex: none;
+    min-height: 0;
+  }
+
+  .chat-section {
+    min-height: 170px;
+  }
+}
