@@ -1,10 +1,38 @@
 const express = require('express')
 const { User, WatchSession } = require('../models/User.js')
 const { generateCode } = require('../utils/codeGenerator.js')
+const multer = require('multer')
+const path = require('path')
+const fs = require('fs')
+const crypto = require('crypto')
 const auth = require('../middleware/auth.js')
 const { getIO } = require('../utils/io.js')
 
 const router = express.Router()
+
+const uploadsDir = path.join(__dirname, '..', 'uploads')
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    fs.mkdirSync(uploadsDir, { recursive: true })
+    cb(null, uploadsDir)
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase() || '.mp4'
+    cb(null, `${crypto.randomUUID()}${ext}`)
+  }
+})
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 500 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (/^video\//.test(file.mimetype) || /\.(mp4|webm|mov|m4v|ogg|mkv)$/i.test(file.originalname)) {
+      cb(null, true)
+    } else {
+      cb(new Error('Only video files are supported'))
+    }
+  }
+})
 
 function isMember(session, userId) {
   if (session.sessionType === 'couple') {
@@ -132,6 +160,45 @@ router.post('/:id/video', auth, async (req, res) => {
     console.error('Set video error:', error)
     res.status(500).json({ error: 'Internal server error' })
   }
+})
+
+// Upload a video file for a live session (stored on the server so everyone can watch it together)
+router.post('/:id/upload', auth, (req, res) => {
+  upload.single('video')(req, res, async (err) => {
+    if (err) {
+      if (err instanceof multer.MulterError) {
+        const message = err.code === 'LIMIT_FILE_SIZE' ? 'Video file exceeds 500MB limit' : err.message
+        return res.status(400).json({ error: message })
+      }
+      return res.status(400).json({ error: err.message })
+    }
+
+    try {
+      const { id } = req.params
+      const session = await WatchSession.findById(id)
+      if (!session) {
+        return res.status(404).json({ error: 'Session not found' })
+      }
+      if (!isMember(session, req.userId)) {
+        return res.status(403).json({ error: 'Not a member of this session' })
+      }
+      if (!req.file) {
+        return res.status(400).json({ error: 'No video file provided' })
+      }
+
+      const title = (req.body && req.body.title) || req.file.originalname.replace(/\.[^.]+$/, '') || 'Live video'
+      const video = {
+        title,
+        url: `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`,
+        type: 'upload',
+        duration: 0
+      }
+      res.json({ video })
+    } catch (error) {
+      console.error('Upload video error:', error)
+      res.status(500).json({ error: 'Internal server error' })
+    }
+  })
 })
 
 // Get most recent active session for the current user

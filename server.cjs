@@ -31,11 +31,17 @@ setIO(io)
 
 app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173', credentials: true }))
 app.use(express.json())
+app.set('trust proxy', true)
 
 // Serve uploaded avatars
 const avatarsPath = path.join(__dirname, 'public', 'avatars')
 fs.mkdirSync(avatarsPath, { recursive: true })
 app.use('/avatars', express.static(avatarsPath))
+
+// Serve session video uploads
+const uploadsPath = path.join(__dirname, 'uploads')
+fs.mkdirSync(uploadsPath, { recursive: true })
+app.use('/uploads', express.static(uploadsPath))
 
 // Routes
 app.use('/api/auth', authRoutes)
@@ -46,7 +52,7 @@ app.use('/api/profile', profileRoutes)
 // Multer + file filter error handler
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
-    const message = err.code === 'LIMIT_FILE_SIZE' ? 'Avatar file exceeds 2MB limit' : err.message
+    const message = err.code === 'LIMIT_FILE_SIZE' ? 'File exceeds the upload size limit' : err.message
     return res.status(400).json({ error: message })
   }
   if (err) {

@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import { LuLink, LuUpload, LuFolderOpen, LuImages, LuX, LuArrowLeft, LuCheck } from 'react-icons/lu'
 import { setPendingVideo, setPendingLink } from './videoStore.js'
+import { API_BASE } from './lib/api.js'
 import { useLiveSession } from './live/LiveSessionContext.jsx'
 import { getVideoType } from './utils/video.js'
 import './App.css'
@@ -16,6 +17,7 @@ const MovieSelection = ({ onNavigate }) => {
   const [url, setUrl] = useState('')
   const [title, setTitle] = useState('')
   const [error, setError] = useState('')
+  const [uploading, setUploading] = useState(false)
   const fileInput = useRef(null)
 
   const handlePasteSelect = () => {
@@ -25,7 +27,7 @@ const MovieSelection = ({ onNavigate }) => {
 
   const handleUploadSelect = () => {
     setMode('upload')
-    setError(isLive ? 'In a live session, uploads only play on your own screen. Paste a link so everyone can watch together.' : '')
+    setError('')
   }
 
   const pickFile = (fromGallery) => {
@@ -72,11 +74,33 @@ const MovieSelection = ({ onNavigate }) => {
       setError('Please choose a video file first')
       return
     }
+    const theTitle = title || selectedFile.name
     if (isLive) {
-      setError('Uploaded files can only be watched by you. Paste a link to watch together.')
+      setError('')
+      setUploading(true)
+      try {
+        const form = new FormData()
+        form.append('video', selectedFile)
+        form.append('title', theTitle)
+        const res = await fetch(`${API_BASE}/api/sessions/${sessionId}/upload`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${localStorage.getItem('tyelaToken') || ''}` },
+          body: form
+        })
+        const json = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(json.error || 'Upload failed')
+        if (setSessionVideo) {
+          await setSessionVideo({ title: theTitle, url: json.video.url, type: 'upload', duration: 0 })
+        }
+        onNavigate(targetHub)
+      } catch (e) {
+        setError(e.message)
+      } finally {
+        setUploading(false)
+      }
       return
     }
-    setPendingVideo(selectedFile, title || selectedFile.name)
+    setPendingVideo(selectedFile, theTitle)
     onNavigate('watch-session')
   }
 
@@ -153,7 +177,7 @@ const MovieSelection = ({ onNavigate }) => {
       {mode === 'upload' && (
         <div className="upload-screen">
           <h2>Upload a video</h2>
-          <p>Pick a video from your files or gallery</p>
+          <p>{isLive ? 'Upload a file and it will stream to everyone in the room' : 'Pick a video from your files or gallery'}</p>
 
           {error && <p className="error">{error}</p>}
 
@@ -177,7 +201,9 @@ const MovieSelection = ({ onNavigate }) => {
             <input type="text" placeholder="Video title" value={title} onChange={(e) => setTitle(e.target.value)} />
           </div>
 
-          <button className="btn-primary" onClick={handleStartUpload}>Upload and start</button>
+          <button className="btn-primary" onClick={handleStartUpload} disabled={uploading}>
+            {uploading ? 'Uploading…' : 'Upload and start'}
+          </button>
           <button className="btn-secondary" onClick={() => setMode('paste')}>
             Use a link instead
           </button>

@@ -19,6 +19,7 @@ dist-ssr
 
 # User uploads
 public/avatars
+uploads
 
 # Editor directories and files
 .vscode/*
