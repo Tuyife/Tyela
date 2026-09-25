@@ -40,6 +40,7 @@ export const LiveSessionProvider = ({ children, navigate }) => {
   }, [playback])
 
   const sessionId = session ? session.sessionId : null
+  const mode = session ? session.mode : null
 
   const fetchSession = useCallback(async (id) => {
     if (!id) return
@@ -355,7 +356,7 @@ export const LiveSessionProvider = ({ children, navigate }) => {
     () => ({
       session,
       sessionId,
-      mode: session ? session.mode : null,
+      mode,
       code: session ? session.code : null,
       partner: session ? session.partner : null,
       host: session ? session.host : null,
