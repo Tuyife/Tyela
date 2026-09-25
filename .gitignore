@@ -30,3 +30,5 @@ public/avatars
 *.njsproj
 *.sln
 *.sw?
+
+.vercel
