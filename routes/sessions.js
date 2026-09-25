@@ -160,6 +160,49 @@ router.get('/active', auth, async (req, res) => {
   }
 })
 
+// Watch history for the current user (couple + group), most recent first
+router.get('/history', auth, async (req, res) => {
+  try {
+    const sessions = await WatchSession.find({
+      $or: [
+        { 'couple.user1Id': req.userId },
+        { 'couple.user2Id': req.userId },
+        { 'group.hostId': req.userId },
+        { 'group.participantIds': req.userId }
+      ]
+    })
+      .sort({ createdAt: -1 })
+      .limit(20)
+
+    const history = await Promise.all(
+      sessions.map(async (session) => {
+        const s = session.toObject()
+        const participants = await participantsFor(session)
+        const other =
+          s.sessionType === 'couple'
+            ? participants.find((p) => p.id && p.id.toString() !== req.userId.toString()) || null
+            : null
+        return {
+          id: s._id,
+          sessionType: s.sessionType,
+          video: s.video && s.video.url ? s.video : null,
+          status: s.status,
+          startedAt: s.startedAt,
+          endedAt: s.endedAt,
+          partner: other,
+          participantCount: participants.length,
+          lastChat: (s.messages && s.messages.length ? s.messages[s.messages.length - 1] : null) || null
+        }
+      })
+    )
+
+    res.json({ history })
+  } catch (error) {
+    console.error('History error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
 // Get a full session (video, playback, messages, participants)
 router.get('/:id', auth, async (req, res) => {
   try {
