@@ -224,8 +224,9 @@ const ConnectionCode = ({ onNavigate }) => {
                 id="partner-code"
                 placeholder={isGroup ? 'Enter room code' : 'Enter partner code'}
                 value={inputCode}
-                onChange={(e) => setInputCode(e.target.value)}
+                onChange={(e) => setInputCode(e.target.value.toUpperCase())}
                 maxLength={6}
+                autoCapitalize="characters"
                 aria-label={isGroup ? 'Room code' : 'Partner connection code'}
               />
               <button className="btn-primary" onClick={handleEnterCode} disabled={loading}>

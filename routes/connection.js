@@ -27,7 +27,7 @@ router.post('/generate-code', auth, async (req, res) => {
 // Connect with partner's code -> creates a couple watch session
 router.post('/connect', auth, async (req, res) => {
   try {
-    const { code } = req.body
+    const code = String(req.body.code || '').trim().toUpperCase()
     if (!code) {
       return res.status(400).json({ error: 'Connection code required' })
     }

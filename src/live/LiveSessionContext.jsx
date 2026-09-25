@@ -142,7 +142,12 @@ export const LiveSessionProvider = ({ children, navigate }) => {
           notify(`New message from ${msg.senderName}`, 'info')
         }
       },
-      'session-video': (data) => setVideo(data && data.video ? data.video : null),
+      'session-video': (data) => {
+        if (data && data.video) {
+          setVideo(data.video)
+          setPlayback({ isPlaying: true, currentTime: 0 })
+        }
+      },
       'playback-update': (data) =>
         setPlayback((prev) => ({ ...prev, isPlaying: !!data.isPlaying, currentTime: data.currentTime || 0 })),
       'session-state': (data) => {

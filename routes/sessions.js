@@ -96,7 +96,7 @@ router.post('/create', auth, async (req, res) => {
 // Join a group watch session by room code
 router.post('/join', auth, async (req, res) => {
   try {
-    const { code } = req.body
+    const code = String(req.body.code || '').trim().toUpperCase()
     if (!code) {
       return res.status(400).json({ error: 'Room code required' })
     }
@@ -153,6 +153,7 @@ router.post('/:id/video', auth, async (req, res) => {
     const io = getIO()
     if (io) {
       io.to(`session:${id}`).emit('session-video', { video: session.video })
+      io.to(`session:${id}`).emit('playback-update', { isPlaying: true, currentTime: 0 })
     }
 
     res.json({ video: session.video })
