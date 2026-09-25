@@ -11,6 +11,7 @@ import {
   LuInstagram,
   LuTwitter,
   LuYoutube,
+  LuLogOut,
 } from 'react-icons/lu'
 import { useUser } from './UserContext.jsx'
 import Avatar from './components/Avatar.jsx'
@@ -36,7 +37,10 @@ const Landing = ({ onNavigate }) => {
         <div className="landing-nav-actions">
           {isLoggedIn ? (
             <>
-              <button className="nav-link" onClick={handleLogout}>Sign out</button>
+              <button className="nav-link" onClick={handleLogout} aria-label="Sign out">
+                <LuLogOut size={17} className="nav-logout-icon" />
+                <span className="nav-logout-text">Sign out</span>
+              </button>
               <button className="btn-primary nav-cta landing-user-chip" onClick={() => go('dashboard')}>
                 <Avatar src={user.avatarUrl} name={user.displayName} size={26} />
                 <span className="landing-user-name">Open dashboard</span>

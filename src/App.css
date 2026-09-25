@@ -1420,6 +1420,14 @@
   padding: 10px 18px;
   border-radius: 12px;
   transition: background 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+}
+
+.nav-logout-icon {
+  display: none;
 }
 
 .nav-link:hover {
@@ -2035,8 +2043,28 @@
     letter-spacing: -0.8px;
   }
 
-  .nav-link {
+.nav-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 10px;
+  }
+
+  .nav-logout-icon {
+    display: block;
+  }
+
+  .nav-logout-text {
     display: none;
+  }
+
+  .landing-user-name {
+    display: none;
+  }
+
+  .landing-user-chip {
+    padding: 5px;
+    border-radius: 50%;
   }
 
   .nav-cta {
@@ -3632,4 +3660,36 @@
   font-size: 15px;
   font-weight: 600;
   letter-spacing: 0.3px;
+}
+
+/* ============ Mobile stability ============
+   Mobile browsers change 100vh when the address bar hides/shows, which
+   makes full-screen pages "move around" while scrolling. Prefer the
+   stable small viewport height (fallback: 100vh for older browsers).      */
+@supports (min-height: 100svh) {
+  .splash-screen,
+  .auth-screen,
+  .dashboard,
+  .dashboard-loading,
+  .movie-selection,
+  .connection-code,
+  .upload-screen,
+  .paste-link-screen,
+  .group-watch,
+  .watch-session,
+  .landing,
+  .info-page {
+    min-height: 100svh;
+  }
+}
+
+@media (max-width: 780px) {
+  html,
+  body {
+    overflow-x: hidden;
+  }
+
+  body {
+    background-attachment: scroll;
+  }
 }
