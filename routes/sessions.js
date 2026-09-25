@@ -26,10 +26,10 @@ const upload = multer({
   storage,
   limits: { fileSize: 500 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (/^video\//.test(file.mimetype) || /\.(mp4|webm|mov|m4v|ogg|mkv)$/i.test(file.originalname)) {
+    if (/^video\//.test(file.mimetype) || /\.(mp4|webm|mov|m4v|ogg|ogv|mkv|avi|wmv|3gp|flv)$/i.test(file.originalname)) {
       cb(null, true)
     } else {
-      cb(new Error('Only video files are supported'))
+      cb(new Error('Only video files are supported (MP4, WebM, MOV, MKV and similar)'))
     }
   }
 })

@@ -3517,3 +3517,22 @@
 }
 
 .toggle-on .toggle-knob { transform: translateX(20px); }
+
+/* ============ Group join entry (MovieSelection) ============ */
+.join-room-link {
+  margin-top: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 1px dashed var(--glass-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--accent-text);
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.join-room-link:hover { border-color: var(--theme-accent); background: rgba(255, 255, 255, 0.08); }

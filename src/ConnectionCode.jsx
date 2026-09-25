@@ -17,7 +17,9 @@ const ConnectionCode = ({ onNavigate }) => {
   const [codeExpired, setCodeExpired] = useState(false)
   const [timeLeft, setTimeLeft] = useState(CODE_TTL_SECONDS)
   const [copied, setCopied] = useState(false)
-  const [enterCode, setEnterCode] = useState(false)
+  const [enterCode, setEnterCode] = useState(
+    () => typeof window !== 'undefined' && window.location.search.includes('join=1')
+  )
   const [inputCode, setInputCode] = useState('')
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
@@ -124,17 +126,30 @@ const ConnectionCode = ({ onNavigate }) => {
     }
     setLoading(true)
     try {
-      const next = isGroup ? await joinGroup(inputCode.trim()) : await joinCouple(inputCode.trim())
+      const trimmed = inputCode.trim()
+      const primary = isGroup ? joinGroup : joinCouple
+      const fallback = isGroup ? joinCouple : joinGroup
+      let joined
+      try {
+        joined = await primary(trimmed)
+      } catch (err) {
+        if (/invalid|expired|not found/i.test(err.message || '')) {
+          joined = await fallback(trimmed)
+        } else {
+          throw err
+        }
+      }
+      const joinedGroup = joined.mode === 'group'
       const pending = consumePendingSession()
-      if (pending && ((isGroup && pending.audience === 'group') || (!isGroup && pending.audience === 'partner'))) {
+      if (pending && ((joinedGroup && pending.audience === 'group') || (!joinedGroup && pending.audience === 'partner'))) {
         try {
-          await attachToSession(next.sessionId, pending)
+          await attachToSession(joined.sessionId, pending)
         } catch (e) {
           /* movie attached best-effort */
         }
       }
       setSuccess(true)
-      setTimeout(() => onNavigate(isGroup ? 'group-watch' : 'couple-watch'), 600)
+      setTimeout(() => onNavigate(joinedGroup ? 'group-watch' : 'couple-watch'), 600)
     } catch (e) {
       setError(e.message)
     } finally {

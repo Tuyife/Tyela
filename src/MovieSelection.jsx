@@ -7,6 +7,28 @@ import { useLiveSession } from './live/LiveSessionContext.jsx'
 import { getVideoType } from './utils/video.js'
 import './App.css'
 
+const MAX_UPLOAD_MB = 500
+const VIDEO_EXT_REGEX = /\.(mp4|webm|mov|m4v|ogg|ogv|mkv|avi|wmv|3gp|flv)$/i
+
+const validateVideo = (file) => {
+  if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
+    return `That file is larger than ${MAX_UPLOAD_MB}MB. Choose a smaller video file.`
+  }
+  const looksVideo = (file.type && /^video\//.test(file.type)) || (file.name && VIDEO_EXT_REGEX.test(file.name))
+  if (!looksVideo) {
+    return 'That doesn\u2019t look like a video file. Supported: MP4, WebM, MOV, MKV and more.'
+  }
+  return null
+}
+
+const friendlyError = (e) => {
+  const message = e && e.message ? e.message : 'Something went wrong'
+  if (/failed to fetch|networkerror|network request failed/i.test(message)) {
+    return 'Upload failed to start — check your internet connection and try again (files up to 500MB).'
+  }
+  return message
+}
+
 const MovieSelection = ({ onNavigate }) => {
   const { sessionId, mode: liveMode, openLiveSession, setSessionVideo } = useLiveSession()
   const isLive = Boolean(sessionId)
@@ -83,7 +105,7 @@ const MovieSelection = ({ onNavigate }) => {
       localStorage.setItem('tyelaMode', 'couple')
       onNavigate('connection-code')
     } catch (e) {
-      setError(e.message)
+      setError(friendlyError(e))
       setStarting(false)
     }
   }
@@ -113,6 +135,11 @@ const MovieSelection = ({ onNavigate }) => {
       setError('Please choose a video file first')
       return
     }
+    const uploadError = validateVideo(selectedFile)
+    if (uploadError) {
+      setError(uploadError)
+      return
+    }
     const theTitle = title || selectedFile.name
     if (isLive) {
       setError('')
@@ -133,7 +160,7 @@ const MovieSelection = ({ onNavigate }) => {
         }
         onNavigate(targetHub)
       } catch (e) {
-        setError(e.message)
+        setError(friendlyError(e))
       } finally {
         setStarting(false)
       }
@@ -183,6 +210,17 @@ const MovieSelection = ({ onNavigate }) => {
               )
             })}
           </div>
+          {audience === 'group' && (
+            <button
+              className="join-room-link"
+              onClick={() => {
+                localStorage.setItem('tyelaMode', 'group')
+                onNavigate('connection-code?join=1')
+              }}
+            >
+              <LuUsers size={14} /> Joining a friend&apos;s watch party? Enter their room code
+            </button>
+          )}
         </div>
       )}
 
