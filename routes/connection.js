@@ -3,8 +3,25 @@ const { User, WatchSession } = require('../models/User.js')
 const { generateCode } = require('../utils/codeGenerator.js')
 const auth = require('../middleware/auth.js')
 const { getIO } = require('../utils/io.js')
+const { isOnline } = require('../utils/presence.js')
 
 const router = express.Router()
+
+// Live connection status: is the current user paired, and is their
+// partner online right now (has an active socket)?
+router.get('/status', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId).select('partnerId isConnectedWithPartner')
+    if (!user || !user.isConnectedWithPartner || !user.partnerId) {
+      return res.json({ connected: false, partnerOnline: false })
+    }
+    const partnerId = user.partnerId.toString()
+    res.json({ connected: true, partnerOnline: isOnline(partnerId) })
+  } catch (error) {
+    console.error('Connection status error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
 
 // Generate connection code (couple mode)
 router.post('/generate-code', auth, async (req, res) => {

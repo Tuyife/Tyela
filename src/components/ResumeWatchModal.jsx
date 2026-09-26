@@ -20,7 +20,7 @@ const formatExpiry = (ms) => {
   return h > 0 ? `Expires in ${h}h ${m}m` : `Expires in ${m}m`
 }
 
-const ResumeWatchModal = ({ invite, onAccept, onDecline }) => {
+const ResumeWatchModal = ({ invite, onAccept, onDecline, busy }) => {
   const [now, setNow] = useState(Date.now())
 
   useEffect(() => {
@@ -53,10 +53,10 @@ const ResumeWatchModal = ({ invite, onAccept, onDecline }) => {
           <span className={expired ? 'resume-expired' : ''}>{formatExpiry(expiresAt - now)}</span>
         </div>
         <div className="resume-actions">
-          <button className="btn-primary resume-accept" onClick={onAccept} disabled={expired}>
-            {expired ? 'Invite expired' : 'Accept & resume'}
+          <button className="btn-primary resume-accept" onClick={onAccept} disabled={expired || busy}>
+            {busy ? 'Accepting...' : expired ? 'Invite expired' : 'Accept & resume'}
           </button>
-          <button className="btn-secondary" onClick={onDecline}>
+          <button className="btn-secondary" onClick={onDecline} disabled={busy}>
             Decline
           </button>
         </div>

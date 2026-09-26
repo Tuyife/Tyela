@@ -3750,3 +3750,62 @@
     min-height: 170px;
   }
 }
+
+/* ============ Watch screens: pinned chat on phones ============
+   The page no longer scrolls as one blob. The video and chat stay
+   fixed; only the chat message list (and participants) scroll.      */
+@media (max-width: 780px) {
+  .couple-watch,
+  .group-watch,
+  .watch-session {
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  .couple-watch .watch-header,
+  .group-watch .watch-toolbar,
+  .watch-session .watch-toolbar {
+    flex-shrink: 0;
+  }
+
+  .couple-main,
+  .main-area {
+    min-height: 0;
+  }
+
+  .couple-main .video-player,
+  .main-area .video-player {
+    flex-shrink: 0;
+  }
+
+  .couple-main .chat-section,
+  .main-area .chat-section {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .group-layout {
+    min-height: 0;
+    align-items: start;
+    overflow-y: auto;
+  }
+
+  /* On the stacked (1-column) mobile layout, keep the chat pinned to the
+     bottom of the screen while the movie/participants scroll above it. */
+  .group-layout .chat-section {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+  }
+
+  .participant-sidebar {
+    min-height: 0;
+  }
+
+  .participant-list {
+    max-height: 260px;
+    overflow-y: auto;
+  }
+}

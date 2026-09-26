@@ -11,6 +11,7 @@ const Dashboard = ({ onNavigate }) => {
   const { user } = useUser()
   const { openLiveSession, leaveSession } = useLiveSession()
   const [partnerInfo, setPartnerInfo] = useState(null)
+  const [partnerOnline, setPartnerOnline] = useState(null)
   const [history, setHistory] = useState([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -32,6 +33,24 @@ const Dashboard = ({ onNavigate }) => {
       cancelled = true
     }
   }, [])
+
+  // Poll live partner status so the online dot reflects reality, not just pairing.
+  useEffect(() => {
+    if (!partnerInfo) return undefined
+    let cancelled = false
+    const tick = () =>
+      apiGet('/api/connection/status')
+        .then((d) => {
+          if (!cancelled && d) setPartnerOnline(Boolean(d.partnerOnline))
+        })
+        .catch(() => {})
+    tick()
+    const timer = setInterval(tick, 10000)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
+  }, [partnerInfo])
 
   const handleStartWatching = () => {
     onNavigate('mode-selection')
@@ -139,7 +158,8 @@ const Dashboard = ({ onNavigate }) => {
               <span className="partner-card-label">You&apos;re connected with</span>
               <strong className="partner-card-name">{partnerInfo.displayName}</strong>
               <span className="partner-card-online">
-                <span className="status-dot" /> Connected partner
+                <span className={`status-dot ${partnerOnline === false ? 'offline' : ''}`} />
+                {partnerOnline === false ? 'Partner is offline right now' : 'Partner online'}
               </span>
             </div>
             <div className="partner-card-actions">

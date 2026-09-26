@@ -17,6 +17,7 @@ const dotenv = require('dotenv')
 const { WatchSession } = require('./models/User.js')
 const Invite = require('./models/Invite.js')
 const { setIO } = require('./utils/io.js')
+const { markOnline, markOffline } = require('./utils/presence.js')
 
 dotenv.config()
 
@@ -35,6 +36,16 @@ setIO(io)
 app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173', credentials: true }))
 app.use(express.json())
 app.set('trust proxy', true)
+
+// Health check (works even while MongoDB is retrying)
+app.get('/api/health', (req, res) => {
+  const mongoStates = ['disconnected', 'connected', 'connecting', 'disconnecting']
+  res.json({
+    ok: true,
+    mongo: mongoStates[mongoose.connection.readyState] || 'unknown',
+    time: new Date().toISOString()
+  })
+})
 
 // Serve uploaded avatars
 const avatarsPath = path.join(__dirname, 'public', 'avatars')
@@ -113,6 +124,7 @@ io.on('connection', (socket) => {
   socket.join(`user:${userId}`)
   socket.userName = 'User'
   socket.avatarUrl = null
+  markOnline(socket)
   UserProfile(userId)
     .then((user) => {
       socket.userName = user.name
@@ -219,6 +231,7 @@ io.on('connection', (socket) => {
   }
 
   socket.on('disconnect', () => {
+    markOffline(socket)
     closeSession()
   })
 })
@@ -274,15 +287,25 @@ async function UserProfile(userId) {
 
 const PORT = process.env.PORT || 5000
 
-mongoose
-  .connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/tyela', {
-    serverSelectionTimeoutMS: 8000
-  })
-  .then(() => console.log('MongoDB connected'))
-  .catch((err) => {
-    console.error('MongoDB connection failed:', err.message)
-    console.error('Start MongoDB (or set MONGODB_URI in .env) for auth and sessions to work.')
-  })
+// Connect to MongoDB, retrying forever with a backoff so transient
+// database hiccups self-heal instead of killing the API.
+let mongoAttempts = 0
+function connectWithRetry() {
+  mongoAttempts += 1
+  mongoose
+    .connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/tyela', {
+      serverSelectionTimeoutMS: 10000
+    })
+    .then(() => {
+      console.log(`MongoDB connected (attempt ${mongoAttempts})`)
+    })
+    .catch((err) => {
+      console.error(`MongoDB connection failed (attempt ${mongoAttempts}):`, err.message)
+      console.error('Retrying in 5 seconds...')
+      setTimeout(connectWithRetry, 5000)
+    })
+}
+connectWithRetry()
 
 server.listen(PORT, () => {
   console.log(`TYELA server running on port ${PORT}`)

@@ -92,6 +92,17 @@
   padding: 0;
 }
 
+/* Instant tap response on touch screens (removes the double-tap delay
+   that makes buttons feel like they "don't work" on mobile). */
+button,
+[role='button'],
+a,
+input,
+select,
+textarea {
+  touch-action: manipulation;
+}
+
 html,
 body {
   min-height: 100vh;

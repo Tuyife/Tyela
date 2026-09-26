@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react'
 import { apiGet, apiPost } from '../lib/api.js'
 import { useLiveSession } from '../live/LiveSessionContext.jsx'
 import { useUser } from '../UserContext.jsx'
+import { useNotifications } from '../context/NotificationContext.jsx'
 import ResumeWatchModal from '../components/ResumeWatchModal.jsx'
 
 const ResumeInviteOverlay = ({ onNavigate }) => {
   const { isLoggedIn } = useUser()
+  const { notify } = useNotifications()
   const { incomingInvite, clearInvite, openLiveSession } = useLiveSession()
   const [pending, setPending] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -28,7 +30,7 @@ const ResumeInviteOverlay = ({ onNavigate }) => {
   const invite = pending || incomingInvite
 
   const handleAccept = async () => {
-    if (!invite) return
+    if (!invite || busy) return
     setBusy(true)
     try {
       const data = await apiPost(`/api/invites/${invite.inviteId}/accept`, {})
@@ -43,13 +45,14 @@ const ResumeInviteOverlay = ({ onNavigate }) => {
     } catch (error) {
       clearInvite()
       setPending(null)
+      notify(error.message || 'Could not accept the invite. Please try again.', 'error')
     } finally {
       setBusy(false)
     }
   }
 
   const handleDecline = async () => {
-    if (!invite) return
+    if (!invite || busy) return
     try {
       if (invite.inviteId) {
         await apiPost(`/api/invites/${invite.inviteId}/decline`, {}).catch(() => {})

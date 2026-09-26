@@ -50,7 +50,6 @@ export const LiveSessionProvider = ({ children, navigate }) => {
       setVideo(s && s.video && s.video.url ? s.video : null)
       setPlayback(s && s.playbackState ? s.playbackState : { isPlaying: false, currentTime: 0 })
       setMessages((s && s.messages) || [])
-      setParticipants((s && s.participants) || [])
     } catch (error) {
       /* session may be gone - keep current state */
     }
@@ -67,6 +66,7 @@ export const LiveSessionProvider = ({ children, navigate }) => {
       setMessages([])
       setVideo(null)
       setPlayback({ isPlaying: false, currentTime: 0 })
+      setParticipants([])
       setPartnerTyping(false)
       setPartnerOnline(true)
       setOfflineDeadline(null)
