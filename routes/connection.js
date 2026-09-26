@@ -7,21 +7,33 @@ const { isOnline } = require('../utils/presence.js')
 
 const router = express.Router()
 
-// Live connection status: is the current user paired, and is their
-// partner online right now (has an active socket)?
-router.get('/status', auth, async (req, res) => {
-  try {
-    const user = await User.findById(req.userId).select('partnerId isConnectedWithPartner')
-    if (!user || !user.isConnectedWithPartner || !user.partnerId) {
-      return res.json({ connected: false, partnerOnline: false })
-    }
-    const partnerId = user.partnerId.toString()
-    res.json({ connected: true, partnerOnline: isOnline(partnerId) })
-  } catch (error) {
-    console.error('Connection status error:', error)
-    res.status(500).json({ error: 'Internal server error' })
+// Migrate legacy single-partner accounts (partnerId) into the partners array,
+// so existing couples keep working alongside the new multi-partner support.
+async function ensurePartners(user) {
+  if ((!user.partners || user.partners.length === 0) && user.partnerId) {
+    user.partners = [{ userId: user.partnerId, pairedAt: user.updatedAt || new Date() }]
+    await user.save()
   }
-})
+  return user
+}
+
+// Resolve a user's partners array into { userId, displayName, avatarUrl }.
+async function partnersOf(user) {
+  await ensurePartners(user)
+  const ids = (user.partners || []).map((p) => p.userId).filter(Boolean)
+  if (ids.length === 0) return []
+  const users = await User.find({ _id: { $in: ids } }).select('displayName avatarUrl')
+  const map = new Map(users.map((u) => [String(u._id), u]))
+  return (user.partners || [])
+    .filter((p) => p.userId)
+    .map((p) => {
+      const u = map.get(String(p.userId))
+      if (!u) return null
+      return { userId: u._id, displayName: u.displayName, avatarUrl: u.avatarUrl || '' }
+    })
+    .filter(Boolean)
+    .sort((a, b) => String(a.displayName).localeCompare(String(b.displayName)))
+}
 
 // Generate connection code (couple mode)
 router.post('/generate-code', auth, async (req, res) => {
@@ -41,7 +53,8 @@ router.post('/generate-code', auth, async (req, res) => {
   }
 })
 
-// Connect with partner's code -> creates a couple watch session
+// Connect with partner's code -> creates a couple watch session.
+// Users can now have several partners at once (deduped per person).
 router.post('/connect', auth, async (req, res) => {
   try {
     const code = String(req.body.code || '').trim().toUpperCase()
@@ -53,9 +66,7 @@ router.post('/connect', auth, async (req, res) => {
     if (!joiner) {
       return res.status(404).json({ error: 'User not found' })
     }
-    if (joiner.isConnectedWithPartner) {
-      return res.status(400).json({ error: 'You are already connected to a partner' })
-    }
+    await ensurePartners(joiner)
 
     const partner = await User.findOne({
       partnerConnectionCode: code,
@@ -67,8 +78,13 @@ router.post('/connect', auth, async (req, res) => {
     if (partner._id.equals(joiner._id)) {
       return res.status(400).json({ error: 'You cannot pair with yourself' })
     }
-    if (partner.isConnectedWithPartner) {
-      return res.status(400).json({ error: 'That partner is already connected' })
+    await ensurePartners(partner)
+
+    const alreadyPaired = (joiner.partners || []).some(
+      (p) => p.userId && p.userId.equals(partner._id)
+    )
+    if (alreadyPaired) {
+      return res.status(400).json({ error: 'You are already connected with this partner' })
     }
 
     // Create the couple watch session
@@ -79,17 +95,15 @@ router.post('/connect', auth, async (req, res) => {
     })
     await session.save()
 
-    // Pair both users with each other
+    // Pair both users with each other (append - never overwrites other partners)
     await Promise.all([
       User.findByIdAndUpdate(joiner._id, {
-        partnerId: partner._id,
-        isConnectedWithPartner: true,
+        $addToSet: { partners: { userId: partner._id } },
         partnerConnectionCode: '',
         partnerConnectionCodeExpires: null
       }),
       User.findByIdAndUpdate(partner._id, {
-        partnerId: joiner._id,
-        isConnectedWithPartner: true,
+        $addToSet: { partners: { userId: joiner._id } },
         partnerConnectionCode: '',
         partnerConnectionCodeExpires: null
       })
@@ -117,17 +131,30 @@ router.post('/connect', auth, async (req, res) => {
   }
 })
 
-// Start (or resume) a couple session with an already-connected partner - no code needed
+// Start (or resume) a couple session with one of your partners - no code needed
 router.post('/start', auth, async (req, res) => {
   try {
-    const user = await User.findById(req.userId).select('partnerId isConnectedWithPartner')
-    if (!user || !user.isConnectedWithPartner || !user.partnerId) {
+    const user = await User.findById(req.userId).select('partners partnerId')
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' })
+    }
+    await ensurePartners(user)
+
+    const list = user.partners || []
+    if (list.length === 0) {
       return res
         .status(400)
         .json({ error: 'You are not connected to a partner yet. Ask for their code to pair first.' })
     }
 
-    const partnerId = user.partnerId.toString()
+    // Fall back to the most recently paired partner when none is specified
+    const requested = req.body.partnerId || (list[list.length - 1].userId || '').toString()
+    const entry = list.find((p) => p.userId && p.userId.toString() === String(requested))
+    if (!entry) {
+      return res.status(400).json({ error: 'You are not connected with that partner' })
+    }
+
+    const partnerId = entry.userId.toString()
     const selfId = req.userId.toString()
     const partner = await User.findById(partnerId).select('displayName avatarUrl')
     if (!partner) {
@@ -138,8 +165,8 @@ router.post('/start', auth, async (req, res) => {
       sessionType: 'couple',
       status: { $in: ['active', 'paused'] },
       $or: [
-        { 'couple.user1Id': req.userId, 'couple.user2Id': user.partnerId },
-        { 'couple.user1Id': user.partnerId, 'couple.user2Id': req.userId }
+        { 'couple.user1Id': req.userId, 'couple.user2Id': entry.userId },
+        { 'couple.user1Id': entry.userId, 'couple.user2Id': req.userId }
       ]
     }
     let session = await WatchSession.findOne(coupleMatch).sort({ createdAt: -1 })
@@ -169,49 +196,54 @@ router.post('/start', auth, async (req, res) => {
   }
 })
 
-// Get partner info
-router.get('/partner', auth, async (req, res) => {
+// Live connection status: every partner with their real-time online state
+router.get('/status', auth, async (req, res) => {
   try {
-    const user = await User.findById(req.userId).select('partnerId isConnectedWithPartner')
+    const user = await User.findById(req.userId).select('partners partnerId')
     if (!user) {
       return res.status(404).json({ error: 'User not found' })
     }
+    const partners = await partnersOf(user)
+    res.json({
+      connected: partners.length > 0,
+      partners: partners.map((p) => ({ ...p, online: isOnline(p.userId) }))
+    })
+  } catch (error) {
+    console.error('Connection status error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
 
-    if (!user.isConnectedWithPartner || !user.partnerId) {
-      return res.json({ partner: null })
+// Get partner info (all partners)
+router.get('/partner', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId).select('partners partnerId')
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' })
     }
-
-    const partner = await User.findById(user.partnerId).select('displayName avatarUrl')
-    res.json({ partner })
+    const partners = await partnersOf(user)
+    res.json({ connected: partners.length > 0, partners })
   } catch (error) {
     console.error('Get partner error:', error)
     res.status(500).json({ error: 'Internal server error' })
   }
 })
 
-// Disconnect from partner
+// Disconnect from one specific partner
 router.post('/disconnect', auth, async (req, res) => {
   try {
+    const { partnerId } = req.body
+    if (!partnerId) {
+      return res.status(400).json({ error: 'partnerId is required' })
+    }
     const user = await User.findById(req.userId)
     if (!user) {
       return res.status(404).json({ error: 'User not found' })
     }
 
-    const partnerId = user.partnerId
     await Promise.all([
-      User.findByIdAndUpdate(user._id, {
-        isConnectedWithPartner: false,
-        partnerId: null,
-        partnerConnectionCode: null,
-        partnerConnectionCodeExpires: null
-      }),
-      partnerId &&
-        User.findByIdAndUpdate(partnerId, {
-          isConnectedWithPartner: false,
-          partnerId: null,
-          partnerConnectionCode: null,
-          partnerConnectionCodeExpires: null
-        })
+      User.findByIdAndUpdate(user._id, { $pull: { partners: { userId: partnerId } } }),
+      User.findByIdAndUpdate(partnerId, { $pull: { partners: { userId: user._id } } })
     ])
 
     res.json({ success: true })

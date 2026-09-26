@@ -10,6 +10,12 @@ const UserSchema = new Schema(
     partnerConnectionCode: { type: String },
     partnerConnectionCodeExpires: { type: Date },
     isConnectedWithPartner: { type: Boolean, default: false },
+    partners: [
+      {
+        userId: { type: Schema.Types.ObjectId, ref: 'User' },
+        pairedAt: { type: Date, default: Date.now }
+      }
+    ],
     profileImage: { type: String },
     avatarUrl: { type: String, default: '' },
     bio: { type: String, default: '', maxlength: 100 },

@@ -9,9 +9,8 @@ import './App.css'
 
 const Dashboard = ({ onNavigate }) => {
   const { user } = useUser()
-  const { openLiveSession, leaveSession } = useLiveSession()
-  const [partnerInfo, setPartnerInfo] = useState(null)
-  const [partnerOnline, setPartnerOnline] = useState(null)
+  const { openLiveSession } = useLiveSession()
+  const [partnerList, setPartnerList] = useState([])
   const [history, setHistory] = useState([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -19,10 +18,10 @@ const Dashboard = ({ onNavigate }) => {
     let cancelled = false
     const load = async () => {
       try {
-        const partner = await apiGet('/api/connection/partner').catch(() => ({ partner: null }))
+        const partners = await apiGet('/api/connection/status').catch(() => ({ partners: [] }))
         const hist = await apiGet('/api/sessions/history').catch(() => ({ history: [] }))
         if (cancelled) return
-        setPartnerInfo(partner.partner || null)
+        setPartnerList(partners.partners || [])
         setHistory(hist.history || [])
       } finally {
         if (!cancelled) setIsLoading(false)
@@ -34,23 +33,14 @@ const Dashboard = ({ onNavigate }) => {
     }
   }, [])
 
-  // Poll live partner status so the online dot reflects reality, not just pairing.
+  // Refresh live online dots every few seconds.
   useEffect(() => {
-    if (!partnerInfo) return undefined
-    let cancelled = false
-    const tick = () =>
-      apiGet('/api/connection/status')
-        .then((d) => {
-          if (!cancelled && d) setPartnerOnline(Boolean(d.partnerOnline))
-        })
-        .catch(() => {})
-    tick()
-    const timer = setInterval(tick, 10000)
-    return () => {
-      cancelled = true
-      clearInterval(timer)
-    }
-  }, [partnerInfo])
+    const timer = setInterval(async () => {
+      const data = await apiGet('/api/connection/status').catch(() => null)
+      if (data && data.partners) setPartnerList(data.partners)
+    }, 10000)
+    return () => clearInterval(timer)
+  }, [])
 
   const handleStartWatching = () => {
     onNavigate('mode-selection')
@@ -60,27 +50,9 @@ const Dashboard = ({ onNavigate }) => {
     onNavigate('connection-code')
   }
 
-  const handleWatchTogether = async () => {
+  const handleWatchTogether = async (partner) => {
     try {
-      const data = await apiGet('/api/sessions/active')
-      if (data.session && data.session.sessionType === 'couple') {
-        const s = data.session
-        openLiveSession({
-          sessionId: s._id,
-          mode: 'couple',
-          partner: partnerInfo
-            ? { id: partnerInfo._id, name: partnerInfo.displayName, avatarUrl: partnerInfo.avatarUrl || '' }
-            : undefined
-        })
-        onNavigate('couple-watch')
-        return
-      }
-    } catch (error) {
-      /* fall through */
-    }
-    // Already paired: resume or create the couple session automatically
-    try {
-      const start = await apiPost('/api/connection/start', {})
+      const start = await apiPost('/api/connection/start', { partnerId: partner.userId })
       if (start && start.sessionId) {
         openLiveSession({ sessionId: start.sessionId, mode: 'couple', partner: start.partner })
         onNavigate('couple-watch')
@@ -102,14 +74,9 @@ const Dashboard = ({ onNavigate }) => {
     onNavigate(isCouple ? 'couple-watch' : 'group-watch')
   }
 
-  const handleDisconnect = async () => {
-    leaveSession()
-    setPartnerInfo(null)
-    try {
-      await apiPost('/api/connection/disconnect', {})
-    } catch (error) {
-      /* ignore */
-    }
+  const handleDisconnect = async (partner) => {
+    await apiPost('/api/connection/disconnect', { partnerId: partner.userId }).catch(() => {})
+    setPartnerList((prev) => prev.filter((p) => String(p.userId) !== String(partner.userId)))
   }
 
   if (isLoading) {
@@ -147,33 +114,33 @@ const Dashboard = ({ onNavigate }) => {
       </header>
 
       <main className="dashboard-content">
-        {partnerInfo ? (
-          <div className="partner-card status-section">
-            <Avatar
-              src={partnerInfo.avatarUrl}
-              name={partnerInfo.displayName}
-              size={58}
-            />
-            <div className="partner-card-meta">
-              <span className="partner-card-label">You&apos;re connected with</span>
-              <strong className="partner-card-name">{partnerInfo.displayName}</strong>
-              <span className="partner-card-online">
-                <span className={`status-dot ${partnerOnline === false ? 'offline' : ''}`} />
-                {partnerOnline === false ? 'Partner is offline right now' : 'Partner online'}
-              </span>
-            </div>
-            <div className="partner-card-actions">
-              <button className="btn-primary" onClick={handleWatchTogether}>
-                Watch together
-              </button>
-              <button
-                className="btn-secondary partner-disconnect"
-                onClick={handleDisconnect}
-                title="Disconnect from this partner"
-              >
-                <LuUnplug size={14} /> Disconnect
-              </button>
-            </div>
+        {partnerList.length > 0 ? (
+          <div className="partner-list">
+            {partnerList.map((p) => (
+              <div className="partner-card status-section" key={String(p.userId)}>
+                <Avatar src={p.avatarUrl} name={p.displayName} size={58} />
+                <div className="partner-card-meta">
+                  <span className="partner-card-label">You&apos;re connected with</span>
+                  <strong className="partner-card-name">{p.displayName}</strong>
+                  <span className="partner-card-online">
+                    <span className={`status-dot ${p.online ? '' : 'offline'}`} />
+                    {p.online ? 'Online now' : 'Offline right now'}
+                  </span>
+                </div>
+                <div className="partner-card-actions">
+                  <button className="btn-primary" onClick={() => handleWatchTogether(p)}>
+                    Watch together
+                  </button>
+                  <button
+                    className="btn-secondary partner-disconnect"
+                    onClick={() => handleDisconnect(p)}
+                    title="Disconnect from this partner"
+                  >
+                    <LuUnplug size={14} /> Disconnect
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         ) : (
           <div className="partner-card status-section partner-card-empty">
@@ -182,7 +149,7 @@ const Dashboard = ({ onNavigate }) => {
               <strong className="partner-card-name">No partner connected yet</strong>
               <p className="partner-card-hint">
                 Generate a code or join with a partner&apos;s code and your history
-                will live here.
+                will live here. You can connect with more than one partner.
               </p>
             </div>
             <button className="btn-primary" onClick={handleManageConnection}>

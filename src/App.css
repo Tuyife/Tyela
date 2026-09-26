@@ -3809,3 +3809,81 @@
     overflow-y: auto;
   }
 }
+
+/* ============ Multi-partner dashboard ============ */
+.partner-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  max-width: 720px;
+}
+
+/* ============ Mobile breathing room: no overlapping ============ */
+@media (max-width: 780px) {
+  .dashboard header,
+  .landing-nav {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+    padding: 14px 16px;
+  }
+
+  .dashboard header .header-left,
+  .dashboard header .header-right {
+    flex-basis: auto;
+    min-width: 0;
+  }
+
+  .header-left {
+    font-size: 17px;
+    padding: 8px 16px;
+  }
+
+  .header-right {
+    flex-wrap: wrap;
+    justify-content: center;
+    padding: 8px 14px;
+  }
+
+  .header-right span,
+  .landing-user-name {
+    max-width: 130px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dashboard main {
+    gap: 20px;
+    padding: 20px 16px 34px;
+  }
+
+  .partner-card {
+    padding: 18px 16px;
+    gap: 14px;
+    text-align: center;
+    justify-content: center;
+  }
+
+  .partner-card-meta {
+    min-width: 0;
+    align-items: center;
+  }
+
+  .partner-card-actions {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .info-card {
+    padding: 38px 22px;
+  }
+
+  .code-display,
+  .host-actions,
+  .connection-success {
+    padding: 12px;
+  }
+}
