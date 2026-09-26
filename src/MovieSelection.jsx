@@ -4,6 +4,7 @@ import { setPendingVideo, setPendingLink, setPendingSession } from './videoStore
 import { apiGet, apiPost, API_BASE } from './lib/api.js'
 import { attachToSession } from './lib/attachVideo.js'
 import { useLiveSession } from './live/LiveSessionContext.jsx'
+import Avatar from './components/Avatar.jsx'
 import { getVideoType } from './utils/video.js'
 import './App.css'
 
@@ -42,6 +43,9 @@ const MovieSelection = ({ onNavigate }) => {
   const [title, setTitle] = useState('')
   const [error, setError] = useState('')
   const [starting, setStarting] = useState(false)
+  const [partnerList, setPartnerList] = useState([])
+  const [pendingPayload, setPendingPayload] = useState(null)
+  const [choosingPartner, setChoosingPartner] = useState(false)
   const fileInput = useRef(null)
 
   const handlePasteSelect = () => {
@@ -101,17 +105,44 @@ const MovieSelection = ({ onNavigate }) => {
         onNavigate('couple-watch')
         return
       }
-      // already paired but no active couple session - resume/create it automatically
-      const start = await apiPost('/api/connection/start', {}).catch(() => null)
-      if (start && start.sessionId) {
-        await attachToSession(start.sessionId, payload)
-        openLiveSession({ sessionId: start.sessionId, mode: 'couple', partner: start.partner })
-        onNavigate('couple-watch')
+      // already paired but no active couple session - resume/create it automatically,
+      // letting the user pick which partner to watch with when they have several
+      const status = await apiGet('/api/connection/status').catch(() => ({ partners: [] }))
+      const partners = status.partners || []
+      if (partners.length === 0) {
+        setPendingSession({ ...payload, audience: 'partner' })
+        localStorage.setItem('tyelaMode', 'couple')
+        onNavigate('connection-code')
         return
       }
-      setPendingSession({ ...payload, audience: 'partner' })
-      localStorage.setItem('tyelaMode', 'couple')
-      onNavigate('connection-code')
+      if (partners.length === 1) {
+        await startWithPartner(partners[0], payload)
+        return
+      }
+      setPartnerList(partners)
+      setPendingPayload(payload)
+      setChoosingPartner(true)
+    } catch (e) {
+      setError(friendlyError(e))
+      setStarting(false)
+    }
+  }
+
+  const startWithPartner = async (partner, payload) => {
+    const start = await apiPost('/api/connection/start', { partnerId: partner.userId })
+    if (start && start.sessionId) {
+      await attachToSession(start.sessionId, payload)
+      openLiveSession({ sessionId: start.sessionId, mode: 'couple', partner: start.partner })
+      onNavigate('couple-watch')
+      return
+    }
+    throw new Error('Could not start the couple session')
+  }
+
+  const completePartnerPick = async (partner) => {
+    setChoosingPartner(false)
+    try {
+      await startWithPartner(partner, pendingPayload)
     } catch (e) {
       setError(friendlyError(e))
       setStarting(false)
@@ -330,6 +361,36 @@ const MovieSelection = ({ onNavigate }) => {
           <button className="btn-secondary" onClick={() => setMode('paste')}>
             Use a link instead
           </button>
+        </div>
+      )}
+
+      {choosingPartner && (
+        <div className="partner-picker-overlay" onClick={() => setChoosingPartner(false)}>
+          <div className="partner-picker" onClick={(e) => e.stopPropagation()}>
+            <div className="picker-header">
+              <h3>Watch with which partner?</h3>
+              <button className="picker-close" onClick={() => setChoosingPartner(false)} aria-label="Close">
+                <LuX size={18} />
+              </button>
+            </div>
+            <p className="picker-sub">Pick who this movie is for - it will sync with them.</p>
+            <div className="picker-options">
+              {partnerList.map((p) => (
+                <button
+                  className="picker-option"
+                  key={String(p.userId)}
+                  onClick={() => completePartnerPick(p)}
+                >
+                  <Avatar src={p.avatarUrl} name={p.displayName} size={36} />
+                  <span>{p.displayName}</span>
+                  <small className="partner-picker-online">
+                    <span className={`status-dot ${p.online ? '' : 'offline'}`} />
+                    {p.online ? 'Online' : 'Offline'}
+                  </small>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 

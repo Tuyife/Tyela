@@ -3887,3 +3887,47 @@
     padding: 12px;
   }
 }
+
+/* ============ Partner picker (multiple partners) ============ */
+.partner-picker-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1600;
+  background: rgba(8, 10, 16, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeIn 0.18s ease;
+  backdrop-filter: blur(6px);
+}
+
+.partner-picker {
+  background: var(--card-bg, #161b27);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  padding: 22px;
+  max-width: 420px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.45);
+}
+
+.partner-picker .picker-options {
+  flex-direction: column;
+  gap: 8px;
+}
+
+.partner-picker .picker-option {
+  justify-content: flex-start;
+  text-align: left;
+  width: 100%;
+}
+
+.partner-picker-online {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
