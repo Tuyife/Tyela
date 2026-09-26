@@ -4032,3 +4032,54 @@
     max-width: 100%;
   }
 }
+
+/* ============ Couple header: guaranteed no-overlap on phones ============ */
+@media (max-width: 640px) {
+  .couple-watch .watch-header {
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    row-gap: 8px;
+    column-gap: 8px;
+    padding: 10px 12px;
+    min-height: 0;
+  }
+
+  .couple-watch .partner-info {
+    flex: 1 1 120px;
+    min-width: 0;
+    max-width: 50%;
+    justify-content: center;
+    text-align: center;
+    gap: 8px;
+  }
+
+  .couple-watch .partner-info .avatar-img,
+  .couple-watch .partner-info .avatar-initials {
+    flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
+  }
+
+  .couple-watch .partner-info > span:not(.status-dot) {
+    max-width: 110px;
+  }
+
+  .couple-watch .watch-header-actions {
+    order: 3;
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .couple-watch .conn-hint {
+    display: none;
+  }
+
+  .couple-watch .watch-header-actions .control-btn {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    padding: 8px 12px;
+  }
+}
