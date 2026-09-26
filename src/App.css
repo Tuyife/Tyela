@@ -3969,3 +3969,66 @@
     border-top: 1px dashed rgba(255, 255, 255, 0.07);
   }
 }
+
+/* ============ Watch navbar: wrap instead of overlap <= 780px ============ */
+@media (max-width: 780px) {
+  .couple-watch .watch-header {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .partner-info {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .partner-info > span:not(.status-dot) {
+    max-width: 130px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .couple-watch .watch-header-actions {
+    order: 3;
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .watch-header-actions .conn-hint {
+    display: none;
+  }
+
+  .watch-header-actions .control-btn {
+    white-space: nowrap;
+  }
+
+  .watch-toolbar {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 10px 12px;
+  }
+
+  .video-controls {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .watch-toolbar .session-info {
+    order: 10;
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+  }
+
+  .watch-toolbar .session-info span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+  }
+}
