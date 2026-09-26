@@ -3931,3 +3931,41 @@
   align-items: center;
   gap: 6px;
 }
+
+/* ============ History rows: no overlap on small screens ============ */
+.history-actions {
+  flex-wrap: wrap;
+}
+
+.history-badge,
+.history-resume,
+.history-delete {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .history-item {
+    flex-wrap: wrap;
+    gap: 10px 12px;
+  }
+
+  .history-meta {
+    flex: 1 1 180px;
+  }
+
+  .history-title {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    line-height: 1.45;
+  }
+
+  .history-actions {
+    width: 100%;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-top: 10px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.07);
+  }
+}
