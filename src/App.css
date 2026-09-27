@@ -4083,3 +4083,199 @@
     padding: 8px 12px;
   }
 }
+
+/* ==========================================================================
+   GLOBAL MOBILE HARDENING
+   Fixes overlap/overflow across every screen on phones (320-780px, iOS+Android):
+   - fixed "Back home" pill never sits on content  => screens get top clearance
+   - toasts move to the bottom on phones (top toasts hid the back button)
+   - row layouts wrap instead of clipping; safe-area insets respected
+   ========================================================================== */
+
+/* 1. Fixed back-home respects iOS notches */
+.back-home {
+  top: calc(20px + env(safe-area-inset-top, 0px));
+  left: calc(20px + env(safe-area-inset-left, 0px));
+}
+
+/* 2. Missing screens join the stable-height (svh) set */
+@supports (min-height: 100svh) {
+  .mode-selection,
+  .paste-link,
+  .profile-screen {
+    min-height: 100svh;
+  }
+  .partner-picker {
+    max-height: 80dvh;
+  }
+}
+
+/* 3. Screens that carry the fixed .back-home get top clearance so the
+      pill never overlaps their card/form */
+@media (max-width: 820px) {
+  .auth-screen,
+  .mode-selection,
+  .movie-selection,
+  .connection-code,
+  .paste-link,
+  .upload-screen,
+  .movie-selection .upload-screen,
+  .paste-link-screen {
+    padding-top: 88px;
+  }
+}
+
+/* 4. Toasts: bottom-stacked on phones so they never cover the back button */
+@media (max-width: 780px) {
+  .toast-stack {
+    top: auto;
+    left: 14px;
+    right: 14px;
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    width: auto;
+  }
+}
+
+/* 5. Watch screens: respect notches + keep the chat wide enough to use */
+@media (max-width: 780px) {
+  .couple-watch,
+  .group-watch,
+  .watch-session {
+    padding-top: calc(12px + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .watch-session .chat-section,
+  .couple-watch .chat-section,
+  .group-watch .chat-section {
+    min-height: 150px;
+  }
+}
+
+/* 6. Couple header: the partner chip was stacking vertically because the
+      .partner-side rule (dead .split-screen leftovers) sets flex-direction:column */
+.couple-watch .partner-info.partner-side {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+/* 7. .input-group: proper flex row so the button sits next to the field,
+      never on a clipped second line at 481-780px */
+.input-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  text-align: left;
+}
+
+.input-group input {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.input-group button {
+  flex: 0 1 auto;
+}
+
+.optional input {
+  width: 100%;
+}
+
+/* 8. Enter-code row: allow wrapping (input + Connect) instead of the
+      letter-spaced input pushing the button out of view at 481-640px */
+@media (max-width: 780px) {
+  .enter-code {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .enter-code input {
+    flex: 1 1 180px;
+    min-width: 0;
+  }
+
+  .enter-code button {
+    flex: 0 1 auto;
+  }
+}
+
+/* 9. Audience picker: single column all the way up to 780px */
+@media (max-width: 780px) {
+  .audience-options {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 10. History rows wrap through the 641-780px band too */
+@media (max-width: 780px) {
+  .history-item {
+    flex-wrap: wrap;
+  }
+
+  .history-meta {
+    flex: 1 1 180px;
+  }
+}
+
+/* 11. Info pages: huge 40px h1 must shrink on phones */
+@media (max-width: 640px) {
+  .info-card h1 {
+    font-size: 30px;
+    line-height: 1.15;
+  }
+}
+
+@media (max-width: 420px) {
+  .info-card h1 {
+    font-size: 26px;
+  }
+}
+
+/* 12. Modals / pickers: headings, meta rows and options wrap instead of colliding */
+@media (max-width: 640px) {
+  .resume-meta {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px 14px;
+  }
+
+  .picker-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .picker-option {
+    flex-wrap: wrap;
+  }
+
+  .partner-picker-online {
+    margin-left: 0;
+  }
+
+  .notif-row {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+}
+
+/* 13. Participant names and connection status text truncate, never overlap */
+@media (max-width: 780px) {
+  .participant-item > span:not(.status-dot) {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .connection-status-text {
+    min-width: 0;
+  }
+
+  .landing-nav-actions {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+  }
+}

@@ -429,8 +429,10 @@ button:disabled {
 .toast {
   position: fixed;
   left: 50%;
-  bottom: 28px;
+  bottom: calc(28px + env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%);
+  width: max-content;
+  max-width: min(88vw, 420px);
   background: var(--surface-solid);
   color: var(--text-primary);
   border: 1px solid var(--theme-ring);
