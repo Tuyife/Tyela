@@ -4273,9 +4273,16 @@
     min-width: 0;
   }
 
-  .landing-nav-actions {
+.landing-nav-actions {
     flex-wrap: wrap;
     justify-content: center;
     gap: 10px;
   }
+}
+
+/* Onboarding tutorial card retake button (Profile) */
+.profile-tutorial-btn {
+  width: 100%;
+  margin-top: 0.75rem;
+  text-align: center;
 }

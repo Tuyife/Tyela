@@ -16,6 +16,10 @@ const UserSchema = new Schema(
         pairedAt: { type: Date, default: Date.now }
       }
     ],
+    tutorialCompleted: { type: Boolean, default: false },
+    tutorialSkipped: { type: Boolean, default: false },
+    tutorialSkippedAt: { type: Date },
+    tutorialStartedAt: { type: Date },
     profileImage: { type: String },
     avatarUrl: { type: String, default: '' },
     bio: { type: String, default: '', maxlength: 100 },

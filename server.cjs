@@ -10,6 +10,7 @@ const sessionRoutes = require('./routes/sessions.js')
 const profileRoutes = require('./routes/profile.js')
 const inviteRoutes = require('./routes/invites.js')
 const historyRoutes = require('./routes/history.js')
+const tutorialRoutes = require('./routes/tutorial.js')
 const multer = require('multer')
 const fs = require('fs')
 const path = require('path')
@@ -64,6 +65,7 @@ app.use('/api/sessions', sessionRoutes)
 app.use('/api/profile', profileRoutes)
 app.use('/api/invites', inviteRoutes)
 app.use('/api/history', historyRoutes)
+app.use('/api/tutorial', tutorialRoutes)
 
 // Multer + file filter error handler
 app.use((err, req, res, next) => {

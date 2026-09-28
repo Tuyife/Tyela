@@ -3,6 +3,7 @@ import { LuArrowLeft, LuCamera, LuCheck, LuX } from 'react-icons/lu'
 import { useUser, THEME_COLORS } from './UserContext.jsx'
 import Avatar from './components/Avatar.jsx'
 import { isMuted, toggleMute } from './utils/notificationSound.js'
+import { requestTutorialStart } from './hooks/useOnboarding.js'
 import './App.css'
 
 const THEME_LABEL = {
@@ -188,6 +189,17 @@ const Profile = ({ onNavigate }) => {
             <LuX size={14} /> Remove new avatar
           </button>
         )}
+
+        <button
+          type="button"
+          className="btn-secondary profile-tutorial-btn"
+          onClick={() => {
+            requestTutorialStart()
+            onNavigate('dashboard')
+          }}
+        >
+          Learn the tutorial
+        </button>
       </div>
 
       {toast && <div className="toast">{toast}</div>}

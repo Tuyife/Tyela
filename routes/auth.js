@@ -96,7 +96,18 @@ router.post('/verify-token', async (req, res) => {
       return res.status(404).json({ valid: false })
     }
 
-    res.json({ valid: true, user: { id: user._id, email: user.email, displayName: user.displayName } })
+    res.json({
+      valid: true,
+      user: {
+        id: user._id,
+        email: user.email,
+        displayName: user.displayName,
+        avatarUrl: user.avatarUrl || '',
+        themeColor: user.themeColor || 'purple'
+      },
+      tutorialCompleted: Boolean(user.tutorialCompleted),
+      tutorialSkipped: Boolean(user.tutorialSkipped)
+    })
   } catch (error) {
     res.status(401).json({ valid: false })
   }

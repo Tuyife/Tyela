@@ -1,0 +1,452 @@
+/* ================= TYELA onboarding tutorial =================
+   Non-modal overlay: dims the app, spotlights a key element and
+   shows a step card. The user can still click anything behind it
+   (pointer-events only on the spotlight ring, the card and buttons). */
+
+.onboarding-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  pointer-events: none;
+}
+
+.ob-dim {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 6, 16, 0.28);
+  animation: ob-dim-in 0.3s ease-out both;
+  pointer-events: none;
+}
+
+.ob-spotlight {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at var(--x, 50%) var(--y, 50%),
+    rgba(8, 6, 16, 0) 0%,
+    rgba(8, 6, 16, 0) calc(min(var(--rw, 120px), var(--rh, 60px)) * 0.72),
+    rgba(8, 6, 16, 0.34) calc(min(var(--rw, 120px), var(--rh, 60px)) * 1.5),
+    rgba(8, 6, 16, 0.55) calc(min(var(--rw, 120px), var(--rh, 60px)) * 2.4)
+  );
+  transition: background 0.4s ease-out;
+  pointer-events: none;
+}
+
+.ob-spotlight-focus {
+  position: absolute;
+  border-radius: 14px;
+  border: 2px solid #7c3aed;
+  box-shadow:
+    0 0 0 4px rgba(124, 58, 237, 0.35),
+    0 0 24px 6px rgba(124, 58, 237, 0.55);
+  animation: ob-ring-in 0.3s ease-out both;
+  transition:
+    left 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    top 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    height 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+
+.ob-tooltip {
+  position: fixed;
+  pointer-events: auto;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-left: 4px solid #7c3aed;
+  border-radius: 14px;
+  padding: 1.5rem;
+  width: min(90vw, 320px);
+  box-shadow:
+    0 24px 60px -12px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(124, 58, 237, 0.12);
+  outline: none;
+  animation: ob-fade 0.3s ease-out;
+  transition: left 0.4s cubic-bezier(0.22, 1, 0.36, 1), top 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ob-visual {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 96px;
+  margin-bottom: 1rem;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.14), rgba(236, 72, 153, 0.1));
+  border: 1px dashed rgba(124, 58, 237, 0.35);
+  overflow: hidden;
+}
+
+.ob-hero {
+  position: relative;
+  width: 100%;
+  min-height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ob-hero-tile {
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #7c3aed, #ec4899);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  box-shadow: 0 16px 36px -10px rgba(124, 58, 237, 0.7);
+  animation: ob-hero-float 3s ease-in-out infinite;
+}
+
+.ob-hero-heart {
+  position: absolute;
+  color: #ec4899;
+  animation: ob-heart-pop 1.6s ease-in-out infinite;
+}
+
+.ob-hero-pill {
+  position: absolute;
+  bottom: 10px;
+  background: rgba(31, 41, 55, 0.85);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.ob-chips {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ob-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid rgba(124, 58, 237, 0.25);
+  color: #1f2937;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 6px 16px -8px rgba(0, 0, 0, 0.18);
+}
+
+.ob-chip .ob-chip-role {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #7c3aed, #c084fc);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.ob-chip-sync {
+  color: #7c3aed;
+}
+
+.ob-chips-group {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ob-chips-group .ob-chip {
+  padding: 6px 9px;
+}
+
+.ob-sync-visual {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+}
+
+.ob-sync-frame {
+  width: 52px;
+  height: 38px;
+  border-radius: 8px;
+  background: #1f2937;
+  position: relative;
+  overflow: hidden;
+}
+
+.ob-sync-frame::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 7px;
+  width: 8px;
+  height: 24px;
+  background: linear-gradient(#7c3aed, #c084fc);
+  border-radius: 3px;
+  animation: ob-sync-play 1.1s ease-in-out infinite;
+}
+
+.ob-sync-frame + .ob-sync-frame::before {
+  animation-delay: 0.18s;
+}
+
+.ob-sync-frame + .ob-sync-frame + .ob-sync-frame::before {
+  animation-delay: 0.36s;
+}
+
+.ob-sync-bolt {
+  color: #7c3aed;
+}
+
+.ob-chat-visual {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 4px;
+}
+
+.ob-bubble {
+  max-width: 82%;
+  padding: 8px 12px;
+  border-radius: 14px;
+  font-size: 12.5px;
+  line-height: 1.35;
+  animation: ob-fade-up 0.35s ease-out both;
+}
+
+.ob-bubble.friend {
+  align-self: flex-start;
+  background: #f3f0fa;
+  color: #1f2937;
+  border-top-left-radius: 4px;
+}
+
+.ob-bubble.own {
+  align-self: flex-end;
+  background: #7c3aed;
+  color: #fff;
+  border-top-right-radius: 4px;
+}
+
+.ob-bubble.typing {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #f3f0fa;
+  color: #6b7280;
+}
+
+.ob-typing-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #7c3aed;
+  animation: ob-typing 1s ease-in-out infinite;
+}
+
+.ob-typing-dot:nth-child(2) { animation-delay: 0.15s; }
+.ob-typing-dot:nth-child(3) { animation-delay: 0.3s; }
+
+.ob-tooltip h3 {
+  font-family: var(--font-heading, 'Poppins', sans-serif);
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 4px;
+  line-height: 1.25;
+}
+
+.ob-tooltip .ob-sub {
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b7280;
+  margin: 0 0 8px;
+}
+
+.ob-tooltip .ob-desc {
+  font-size: 13px;
+  font-weight: 400;
+  color: #4b5563;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.ob-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 1.25rem;
+}
+
+.ob-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 11px 20px;
+  border-radius: 12px;
+  font-family: var(--font-heading, 'Poppins', sans-serif);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, background 0.2s ease-in-out;
+}
+
+.ob-btn:focus-visible {
+  outline: 3px solid rgba(124, 58, 237, 0.55);
+  outline-offset: 2px;
+}
+
+.ob-btn-primary {
+  flex: 1;
+  background: linear-gradient(135deg, #7c3aed, #8b5cf6);
+  color: #fff;
+  border: none;
+  box-shadow: 0 8px 20px -8px rgba(124, 58, 237, 0.7);
+}
+
+.ob-btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 26px -8px rgba(124, 58, 237, 0.8);
+}
+
+.ob-btn-skip {
+  background: rgba(31, 41, 55, 0.06);
+  color: #6b7280;
+  border: 1px solid rgba(31, 41, 55, 0.14);
+}
+
+.ob-btn-skip:hover {
+  background: rgba(31, 41, 55, 0.12);
+  color: #1f2937;
+}
+
+.ob-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 1.4rem;
+}
+
+.ob-progress-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #9ca3af;
+  letter-spacing: 0.4px;
+}
+
+.ob-dots {
+  display: flex;
+  gap: 5px;
+}
+
+.ob-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(124, 58, 237, 0.22);
+  transition: background 0.25s ease, transform 0.25s ease;
+}
+
+.ob-dot.active {
+  background: #7c3aed;
+  transform: scale(1.25);
+}
+
+.ob-dot.done {
+  background: rgba(124, 58, 237, 0.6);
+}
+
+.ob-screen-reader {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+/* Responsive: narrower on small phones; spotlight ring shrinks keeping the
+   target visible; the card is centered when it cannot sit beside the target. */
+@media (max-width: 480px) {
+  .ob-tooltip {
+    width: min(88vw, 300px);
+    padding: 1.1rem 1.1rem 1.15rem;
+  }
+
+  .ob-tooltip h3 {
+    font-size: 16.5px;
+  }
+
+  .ob-btn {
+    min-height: 46px;
+  }
+
+  .ob-visual {
+    min-height: 84px;
+  }
+}
+
+/* Keyframes */
+@keyframes ob-fade {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes ob-dim-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes ob-ring-in {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes ob-fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ob-hero-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes ob-heart-pop {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.2); opacity: 1; }
+}
+
+@keyframes ob-sync-play {
+  0%, 100% { transform: scaleY(1); }
+  45% { transform: scaleY(0.4); }
+  55% { transform: scaleY(0.4); }
+}
+
+@keyframes ob-typing {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ob-hero-tile,
+  .ob-hero-heart,
+  .ob-sync-frame::before,
+  .ob-typing-dot,
+  .ob-tooltip,
+  .ob-dim,
+  .ob-spotlight,
+  .ob-spotlight-focus,
+  .ob-bubble {
+    animation: none !important;
+    transition: none !important;
+  }
+}

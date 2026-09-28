@@ -5,14 +5,28 @@ import { useLiveSession } from './live/LiveSessionContext.jsx'
 import { apiGet, apiPost } from './lib/api.js'
 import Avatar from './components/Avatar.jsx'
 import WatchHistory from './components/WatchHistory.jsx'
+import OnboardingOverlay from './components/OnboardingTutorial/OnboardingOverlay.jsx'
+import useOnboarding from './hooks/useOnboarding.js'
 import './App.css'
 
 const Dashboard = ({ onNavigate }) => {
   const { user } = useUser()
   const { openLiveSession } = useLiveSession()
+  const onboarding = useOnboarding()
   const [partnerList, setPartnerList] = useState([])
   const [history, setHistory] = useState([])
   const [isLoading, setIsLoading] = useState(true)
+
+  const tutorialOverlay = onboarding.visible ? (
+    <OnboardingOverlay
+      step={onboarding.step}
+      index={onboarding.current}
+      total={onboarding.total}
+      onNext={onboarding.nextStep}
+      onSkip={onboarding.skipTutorial}
+      onComplete={onboarding.completeTutorial}
+    />
+  ) : null
 
   useEffect(() => {
     let cancelled = false
@@ -81,10 +95,13 @@ const Dashboard = ({ onNavigate }) => {
 
   if (isLoading) {
     return (
-      <div className="dashboard-loading">
-        <div className="loading-spinner" />
-        <p>Loading...</p>
-      </div>
+      <>
+        <div className="dashboard-loading">
+          <div className="loading-spinner" />
+          <p>Loading...</p>
+        </div>
+        {tutorialOverlay}
+      </>
     )
   }
 
@@ -128,7 +145,11 @@ const Dashboard = ({ onNavigate }) => {
                   </span>
                 </div>
                 <div className="partner-card-actions">
-                  <button className="btn-primary" onClick={() => handleWatchTogether(p)}>
+                  <button
+                    className="btn-primary"
+                    data-onboarding="watch-together"
+                    onClick={() => handleWatchTogether(p)}
+                  >
                     Watch together
                   </button>
                   <button
@@ -163,7 +184,11 @@ const Dashboard = ({ onNavigate }) => {
         </section>
 
         <div className="dashboard-actions">
-          <button className="btn-primary" onClick={handleStartWatching}>
+          <button
+            className="btn-primary"
+            data-onboarding="start-watching"
+            onClick={handleStartWatching}
+          >
             Start watching
           </button>
           <button className="btn-secondary" onClick={handleManageConnection}>
@@ -171,6 +196,7 @@ const Dashboard = ({ onNavigate }) => {
           </button>
         </div>
       </main>
+      {tutorialOverlay}
     </div>
   )
 }
