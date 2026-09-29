@@ -4,6 +4,7 @@ import { useUser, THEME_COLORS } from './UserContext.jsx'
 import Avatar from './components/Avatar.jsx'
 import { isMuted, toggleMute } from './utils/notificationSound.js'
 import { requestTutorialStart } from './hooks/useOnboarding.js'
+import usePushNotifications from './hooks/usePushNotifications.js'
 import './App.css'
 
 const THEME_LABEL = {
@@ -24,6 +25,8 @@ const Profile = ({ onNavigate }) => {
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState('')
   const [muted, setMuted] = useState(() => isMuted())
+  const push = usePushNotifications()
+  const [pushBusy, setPushBusy] = useState(false)
   const fileInputRef = useRef(null)
 
   const showToast = (message) => {
@@ -161,6 +164,39 @@ const Profile = ({ onNavigate }) => {
               >
                 <span className="toggle-knob" />
               </button>
+            </div>
+            <div className="notif-row">
+              <div className="notif-copy">
+                <strong>App notifications</strong>
+                <p className="theme-hint">
+                  {push.supported
+                    ? push.enabled
+                      ? 'Push alerts for messages and invites, even when TYELA is closed'
+                      : 'Allow push alerts for messages and invites, even when TYELA is closed'
+                    : 'Push alerts are not supported by this browser'}
+                </p>
+              </div>
+              {push.supported && (
+                <button
+                  type="button"
+                  className={`toggle ${push.enabled ? 'toggle-on' : ''}`}
+                  aria-pressed={push.enabled}
+                  aria-label="Toggle app notifications"
+                  disabled={pushBusy}
+                  onClick={async () => {
+                    if (pushBusy) return
+                    setPushBusy(true)
+                    if (push.enabled) {
+                      await push.disable()
+                    } else {
+                      await push.enable()
+                    }
+                    setPushBusy(false)
+                  }}
+                >
+                  <span className="toggle-knob" />
+                </button>
+              )}
             </div>
           </div>
 

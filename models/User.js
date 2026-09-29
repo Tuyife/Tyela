@@ -24,6 +24,16 @@ const UserSchema = new Schema(
     avatarUrl: { type: String, default: '' },
     bio: { type: String, default: '', maxlength: 100 },
     themeColor: { type: String, enum: ['purple', 'pink', 'teal', 'amber'], default: 'purple' },
+    pushSubscriptions: [
+      {
+        endpoint: { type: String, required: true },
+        keys: {
+          p256dh: { type: String },
+          auth: { type: String }
+        },
+        createdAt: { type: Date, default: Date.now }
+      }
+    ],
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
   },

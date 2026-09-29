@@ -6,6 +6,7 @@ import { apiGet, apiPost } from './lib/api.js'
 import Avatar from './components/Avatar.jsx'
 import WatchHistory from './components/WatchHistory.jsx'
 import OnboardingOverlay from './components/OnboardingTutorial/OnboardingOverlay.jsx'
+import InstallButton from './components/InstallButton.jsx'
 import useOnboarding from './hooks/useOnboarding.js'
 import './App.css'
 
@@ -194,6 +195,7 @@ const Dashboard = ({ onNavigate }) => {
           <button className="btn-secondary" onClick={handleManageConnection}>
             Manage connection
           </button>
+          <InstallButton />
         </div>
       </main>
       {tutorialOverlay}

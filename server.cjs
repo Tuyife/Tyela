@@ -11,6 +11,8 @@ const profileRoutes = require('./routes/profile.js')
 const inviteRoutes = require('./routes/invites.js')
 const historyRoutes = require('./routes/history.js')
 const tutorialRoutes = require('./routes/tutorial.js')
+const notificationsRoutes = require('./routes/notifications.js')
+const { sendPush } = require('./utils/push.js')
 const multer = require('multer')
 const fs = require('fs')
 const path = require('path')
@@ -66,6 +68,7 @@ app.use('/api/profile', profileRoutes)
 app.use('/api/invites', inviteRoutes)
 app.use('/api/history', historyRoutes)
 app.use('/api/tutorial', tutorialRoutes)
+app.use('/api/notifications', notificationsRoutes)
 
 // Multer + file filter error handler
 app.use((err, req, res, next) => {
@@ -105,6 +108,28 @@ function broadcastPresence(sessionId) {
 
 function updateDb(sessionId, update) {
   return WatchSession.findByIdAndUpdate(sessionId, update).catch(() => {})
+}
+
+// Send a push notification to every member of a session except one user.
+// Fire-and-forget: never blocks the socket flow when push is misconfigured.
+function notifySessionMembers(sessionId, exceptUserId, payload) {
+  return WatchSession.findById(sessionId)
+    .select('sessionType couple group')
+    .then((doc) => {
+      if (!doc) return
+      let ids = []
+      if (doc.sessionType === 'couple') {
+        ids = [doc.couple && doc.couple.user1Id, doc.couple && doc.couple.user2Id]
+      } else if (doc.sessionType === 'group') {
+        ids = [doc.group && doc.group.hostId, ...(doc.group && doc.group.participantIds) || []]
+      }
+      const except = String(exceptUserId || '')
+      const unique = [
+        ...new Set(ids.filter(Boolean).map((id) => String(id)).filter((id) => id !== except))
+      ]
+      unique.forEach((id) => sendPush(id, payload).catch(() => {}))
+    })
+    .catch(() => {})
 }
 
 io.on('connection', (socket) => {
@@ -208,6 +233,12 @@ io.on('connection', (socket) => {
     }
     updateDb(sessionId, { $push: { messages: msg } })
     io.to(`session:${sessionId}`).emit('message-received', msg)
+    notifySessionMembers(sessionId, userId, {
+      title: `${socket.userName || 'Someone'} says…`,
+      message: msg.content.slice(0, 120),
+      url: '/dashboard',
+      sessionId
+    })
   })
 
   socket.on('user-typing', () => {
@@ -268,6 +299,12 @@ async function handlePartnerGone(sessionId, goneUserId) {
         currentPlaybackTime: session.playbackState ? session.playbackState.currentTime : 0,
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
       })
+      sendPush(remaining[0], {
+        title: 'Your partner stepped away',
+        message: 'The movie is paused — tap to rejoin whenever you\u2019re ready',
+        url: '/dashboard',
+        sessionId
+      }).catch(() => {})
     }
   } catch (error) {
     /* ignore partner-gone errors */

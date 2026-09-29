@@ -3,6 +3,7 @@ const { User, WatchSession } = require('../models/User.js')
 const Invite = require('../models/Invite.js')
 const auth = require('../middleware/auth.js')
 const { getIO } = require('../utils/io.js')
+const { sendPush } = require('../utils/push.js')
 
 const router = express.Router()
 
@@ -79,6 +80,13 @@ router.post('/send', auth, async (req, res) => {
         expiresAt: invite.expiresAt
       })
     }
+
+    sendPush(toUserId, {
+      title: 'New watch invite 🎬',
+      message: `${from.name} invited you to watch ${invite.sessionTitle}`,
+      url: '/dashboard',
+      sessionId: invite.sessionId
+    }).catch(() => {})
 
     res.json({ inviteId: invite._id, expiresAt: invite.expiresAt })
   } catch (error) {

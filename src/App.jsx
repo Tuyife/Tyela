@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, useNavigate, useParams, Navigate } from 'react-router-dom'
 import { useUser } from './UserContext.jsx'
+import { resyncPushSubscription } from './hooks/usePushNotifications.js'
 import Landing from './Landing.jsx'
 import SplashScreen from './SplashScreen.jsx'
 import LoginScreen from './LoginScreen.jsx'
@@ -24,6 +25,7 @@ import './App.css'
 
 const App = () => {
   const [showSplash, setShowSplash] = useState(true)
+  const { isLoggedIn } = useUser()
 
   useEffect(() => {
     const firstVisit = localStorage.getItem('tyelaFirstVisit')
@@ -37,6 +39,14 @@ const App = () => {
       return () => clearTimeout(timer)
     }
   }, [])
+
+  // Keep an already-granted push permission synced with the server on login.
+  // Never prompts: the opt-in prompt is triggered from Profile's toggle.
+  useEffect(() => {
+    if (!isLoggedIn) return undefined
+    resyncPushSubscription()
+    return undefined
+  }, [isLoggedIn])
 
   return (
     <Router>
