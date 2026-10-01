@@ -4,6 +4,7 @@ import { useUser } from './UserContext.jsx'
 import { resyncPushSubscription } from './hooks/usePushNotifications.js'
 import Landing from './Landing.jsx'
 import SplashScreen from './SplashScreen.jsx'
+import ConnectionInvites from './components/ConnectionInvites.jsx'
 import LoginScreen from './LoginScreen.jsx'
 import SignupScreen from './SignupScreen.jsx'
 import Dashboard from './Dashboard.jsx'
@@ -67,6 +68,7 @@ const AppRoutes = () => {
   return (
     <NotificationProvider>
       <LiveSessionProvider navigate={navigate}>
+        <ConnectionInvites />
         <Routes>
         <Route path="/" element={<Landing onNavigate={(page) => navigate(`/${page}`)} />} />
       <Route path="login" element={<LoginScreen onNavigate={(page) => navigate(`/${page}`)} />} />

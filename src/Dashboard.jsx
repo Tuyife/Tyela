@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { LuHouse, LuUsers } from 'react-icons/lu'
 import { useUser } from './UserContext.jsx'
 import { useLiveSession } from './live/LiveSessionContext.jsx'
+import { useNotifications } from './context/NotificationContext.jsx'
 import { apiGet, apiPost } from './lib/api.js'
 import Avatar from './components/Avatar.jsx'
 import WatchHistory from './components/WatchHistory.jsx'
@@ -14,6 +15,7 @@ import './App.css'
 const Dashboard = ({ onNavigate }) => {
   const { user } = useUser()
   const { openLiveSession } = useLiveSession()
+  const { notify } = useNotifications()
   const onboarding = useOnboarding()
   const [partnerList, setPartnerList] = useState([])
   const [history, setHistory] = useState([])
@@ -95,6 +97,7 @@ const Dashboard = ({ onNavigate }) => {
       await apiPost('/api/connection/invite', { partnerId: partner.userId, kind })
       return true
     } catch {
+      notify(kind === 'join' ? "Couldn't ask to join" : "Couldn't send the invite", 'error')
       return false
     }
   }
