@@ -296,17 +296,52 @@ const LivePlayer = ({ onNavigate }) => {
     }
   }, [isEmbed, embedType, embedId, updatePlayback, emitSyncWait, emitSyncReady, video])
 
-  // Apply remote playback state to the embed player
+// Apply remote playback state to the embed player (idempotent: only drive the
+  // player when its real state differs, to avoid churning the video decoder)
   useEffect(() => {
     if (!isEmbed || !playerReady) return
     const apply = () => {
-      if (peerBuffering) {
-        if (ytRef.current) ytRef.current.pauseVideo()
-        else if (vimeoRef.current) vimeoRef.current.pause().catch(() => {})
-        return
-      }
       const desired = playback
       const type = embedType
+      const drive = async (t) => {
+        if (peerBuffering) {
+          if (ytRef.current) ytRef.current.pauseVideo()
+          else if (vimeoRef.current) vimeoRef.current.pause().catch(() => {})
+          return
+        }
+        applyUntilRef.current = Date.now() + SUPPRESS_MS
+        const drift = t == null ? 0 : Math.abs(t - (desired.currentTime || 0))
+        const shouldSeek = t != null && drift > SEEK_THRESHOLD
+        if (type === 'youtube') {
+          let state
+          try {
+            state = ytRef.current ? ytRef.current.getPlayerState() : -1
+          } catch {
+            state = -1
+          }
+          if (shouldSeek) ytRef.current.seekTo(desired.currentTime || 0, true)
+          if (desired.isPlaying) {
+            wasPlayingRef.current = true
+            if (state !== YT_PLAYING) ytRef.current.playVideo()
+          } else if (state === YT_PLAYING || state === YT_BUFFERING) {
+            ytRef.current.pauseVideo()
+          }
+        } else if (vimeoRef.current) {
+          let paused
+          try {
+            paused = await vimeoRef.current.getPaused().catch(() => true)
+          } catch {
+            paused = true
+          }
+          if (shouldSeek) vimeoRef.current.setCurrentTime(desired.currentTime || 0).catch(() => {})
+          if (desired.isPlaying) {
+            wasPlayingRef.current = true
+            if (paused) vimeoRef.current.play().catch(() => {})
+          } else if (!paused) {
+            vimeoRef.current.pause().catch(() => {})
+          }
+        }
+      }
       const getTime = () => {
         try {
           if (type === 'youtube' && ytRef.current) return Promise.resolve(ytRef.current.getCurrentTime())
@@ -316,30 +351,7 @@ const LivePlayer = ({ onNavigate }) => {
           return Promise.resolve(null)
         }
       }
-      getTime().then((t) => {
-        applyUntilRef.current = Date.now() + SUPPRESS_MS
-        if (desired.isPlaying) {
-          wasPlayingRef.current = true
-          const seek = t != null && Math.abs(t - (desired.currentTime || 0)) > SEEK_THRESHOLD
-          if (type === 'youtube') {
-            if (seek) ytRef.current.seekTo(desired.currentTime || 0, true)
-            ytRef.current.playVideo()
-          } else if (vimeoRef.current) {
-            if (seek) vimeoRef.current.setCurrentTime(desired.currentTime || 0).catch(() => {})
-            vimeoRef.current.play().catch(() => {})
-          }
-        } else if (type === 'youtube') {
-          if (t != null && Math.abs(t - (desired.currentTime || 0)) > SEEK_THRESHOLD) {
-            ytRef.current.seekTo(desired.currentTime || 0, true)
-          }
-          ytRef.current.pauseVideo()
-        } else if (vimeoRef.current) {
-          vimeoRef.current.pause().catch(() => {})
-          if (t != null && Math.abs(t - (desired.currentTime || 0)) > SEEK_THRESHOLD) {
-            vimeoRef.current.setCurrentTime(desired.currentTime || 0).catch(() => {})
-          }
-        }
-      }).catch(() => {})
+      getTime().then((t) => drive(t)).catch(() => {})
     }
     apply()
   }, [playback, peerBuffering, playerReady, isEmbed, embedType])
@@ -368,6 +380,8 @@ const LivePlayer = ({ onNavigate }) => {
             src={video.url}
             controls
             autoPlay={playback.isPlaying}
+            playsInline
+            disableRemotePlayback
             className="video-player-element"
             onPlay={() => {
               if (!remoteRef.current && !peerBuffering)
