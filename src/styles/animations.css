@@ -70,8 +70,7 @@ button:not(:disabled):active {
   border-radius: 50%;
   filter: blur(70px);
   opacity: 0.22;
-  will-change: transform;
-  animation: float 8s ease-in-out infinite;
+  animation: softGlow 12s ease-in-out infinite;
 }
 
 .dashboard-blob-1 {
@@ -88,7 +87,7 @@ button:not(:disabled):active {
   bottom: -120px;
   right: -100px;
   background: radial-gradient(circle, rgba(34, 211, 238, 0.55), transparent 70%);
-  animation: float 10s ease-in-out infinite;
+  animation: softGlow 14s ease-in-out infinite;
   animation-delay: 2s;
 }
 
@@ -98,8 +97,26 @@ button:not(:disabled):active {
   top: 55%;
   right: 15%;
   background: radial-gradient(circle, rgba(244, 114, 182, 0.5), transparent 70%);
-  animation: float 12s ease-in-out infinite;
+  animation: softGlow 16s ease-in-out infinite;
   animation-delay: 4s;
+}
+
+@keyframes softGlow {
+  0%,
+  100% {
+    opacity: 0.18;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* Phones: the ambience orbs are pure decoration, and small screens are
+   exactly where a repainting blurred layer hurts. Drop them entirely. */
+@media (max-width: 640px) {
+  .dashboard-blobs {
+    display: none;
+  }
 }
 
 .dashboard > header,

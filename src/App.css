@@ -176,8 +176,8 @@
   width: 100%;
   max-width: 440px;
   background: var(--glass-bg);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   padding: 44px 40px;
@@ -487,8 +487,8 @@
 .mode-card,
 .option-card {
   background: var(--glass-bg);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   padding: 36px 28px;
@@ -609,7 +609,7 @@
   width: 100%;
   max-width: 360px;
   background: var(--glass-bg);
-  backdrop-filter: blur(16px);
+  backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-soft);
@@ -671,7 +671,7 @@
   width: 100%;
   max-width: 400px;
   background: var(--glass-bg);
-  backdrop-filter: blur(16px);
+  backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-soft);
@@ -709,7 +709,7 @@
   width: 100%;
   max-width: 400px;
   background: var(--glass-bg);
-  backdrop-filter: blur(16px);
+  backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
@@ -759,7 +759,7 @@
   width: 100%;
   max-width: 480px;
   background: var(--glass-bg);
-  backdrop-filter: blur(16px);
+  backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-soft);
@@ -829,7 +829,7 @@
   width: 100%;
   max-width: 640px;
   background: var(--glass-bg);
-  backdrop-filter: blur(16px);
+  backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-soft);
@@ -1650,8 +1650,8 @@
   position: relative;
   z-index: 1;
   background: var(--glass-bg);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
   border-radius: 20px;
   box-shadow: var(--shadow-soft);
@@ -2338,16 +2338,14 @@
   font-family: var(--font-heading);
   font-size: 20px;
   font-weight: 700;
-  color: #fff;
+color: #fff;
   background: var(--theme-grad);
   box-shadow: 0 8px 24px -6px rgba(168, 85, 247, 0.55);
-  animation: pairFloat 2.6s ease-in-out infinite;
 }
 
 .pair-avatar.partner-avatar {
   background: linear-gradient(135deg, #22d3ee, #818cf8);
   box-shadow: 0 8px 24px -6px rgba(34, 211, 238, 0.5);
-  animation-delay: 0.2s;
 }
 
 .pair-label {
@@ -2394,11 +2392,6 @@
   height: 2px;
   border-radius: 2px;
   background: linear-gradient(90deg, rgba(168, 85, 247, 0.25), rgba(34, 211, 238, 0.55));
-  animation: beamGlow 2.6s ease-in-out infinite;
-}
-
-.pair-beam.beam-right {
-  animation-delay: 0.65s;
 }
 
 @keyframes pairFloat {
@@ -2416,11 +2409,6 @@
   15% { transform: scale(1.28); }
   30% { transform: scale(1); }
   45% { transform: scale(1.18); }
-}
-
-@keyframes beamGlow {
-  0%, 100% { opacity: 0.35; }
-  50% { opacity: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2442,8 +2430,8 @@
   margin-top: 10px;
   padding: 56px 40px 28px;
   background: rgba(9, 6, 18, 0.62);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-top: 1px solid var(--glass-border);
 }
 
@@ -2455,8 +2443,7 @@
   width: 100%;
   height: 2px;
   background: linear-gradient(90deg, transparent, rgba(168, 85, 247, 0.7), rgba(34, 211, 238, 0.7), transparent);
-  background-size: 200% 100%;
-  animation: shimmer 5s ease-in-out infinite;
+  background-size: 100% 100%;
 }
 
 .footer-glow {
@@ -2465,7 +2452,7 @@
   filter: blur(72px);
   pointer-events: none;
   opacity: 0.18;
-  animation: float 12s ease-in-out infinite;
+  animation: softGlow 16s ease-in-out infinite;
 }
 
 .footer-glow.glow-a {
@@ -2663,8 +2650,8 @@
   max-width: 680px;
   padding: 48px 46px 40px;
   background: var(--glass-bg);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
   border-radius: 28px;
   box-shadow: var(--shadow-card);
@@ -2896,8 +2883,8 @@
   padding: 22px 26px;
   border-radius: 22px;
   background: var(--glass-bg);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
   box-shadow: var(--shadow-card);
   width: 100%;
