@@ -3,7 +3,7 @@
    always fetched from the network. Only same-origin static assets are cached. */
 
 const CACHE_NAME = 'tyela-v1'
-const PRECACHE = ['/', '/manifest.json', '/favicon.svg', '/favicon-192.png']
+const PRECACHE = ['/', '/manifest.json', '/icons/favicon.svg', '/icons/icon-192.png', '/icons/icon-512.png']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -84,8 +84,8 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: data.message || 'New notification from TYELA',
-    icon: '/icons/icon-192x192.png',
-    badge: '/icons/badge-72x72.png',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/badge-72.png',
     tag: data.tag || 'tyela-notification',
     renotify: true,
     data: {
