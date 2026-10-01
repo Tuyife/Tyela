@@ -5,8 +5,14 @@ import '../App.css'
 // Compact single-row connection card for the mobile dashboard.
 // One action per state: Watch (online) / Ask to join (busy) / Send invite
 // (offline, flips to a green "✓ Sent" once delivered).
-const ConnectionCard = ({ partner, onWatch, onInvite }) => {
+const ConnectionCard = ({ partner, onWatch, onInvite, resetSignal }) => {
   const [sent, setSent] = useState(false)
+  // A declined request puts the button back so it can be asked again.
+  const [lastReset, setLastReset] = useState(resetSignal)
+  if (resetSignal !== lastReset) {
+    setLastReset(resetSignal)
+    setSent(false)
+  }
 
   const state = !partner.online ? 'offline' : partner.busy ? 'busy' : 'online'
 

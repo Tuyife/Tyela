@@ -7,6 +7,8 @@ import { apiGet, apiPost } from './lib/api.js'
 import Avatar from './components/Avatar.jsx'
 import WatchHistory from './components/WatchHistory.jsx'
 import ConnectionCard from './components/ConnectionCard.jsx'
+import JoinRequestList from './components/JoinRequestList.jsx'
+import { getSocket } from './socket.js'
 import OnboardingOverlay from './components/OnboardingTutorial/OnboardingOverlay.jsx'
 import InstallButton from './components/InstallButton.jsx'
 import useOnboarding from './hooks/useOnboarding.js'
@@ -20,6 +22,9 @@ const Dashboard = ({ onNavigate }) => {
   const [partnerList, setPartnerList] = useState([])
   const [history, setHistory] = useState([])
   const [isLoading, setIsLoading] = useState(true)
+  // Bumped when a partner declines a join request, so that card's button
+  // returns to "Ask to join".
+  const [inviteReset, setInviteReset] = useState(0)
 
   const tutorialOverlay = onboarding.visible ? (
     <OnboardingOverlay
@@ -94,13 +99,48 @@ const Dashboard = ({ onNavigate }) => {
 
   const handleInvite = async (partner, kind = 'watch') => {
     try {
-      await apiPost('/api/connection/invite', { partnerId: partner.userId, kind })
+      // "Ask to join" is a real request the partner accepts or declines; an
+      // offline invite stays a one-way nudge.
+      const path =
+        kind === 'join' ? '/api/connection/join-request' : '/api/connection/invite'
+      await apiPost(path, { partnerId: partner.userId, kind })
       return true
     } catch {
       notify(kind === 'join' ? "Couldn't ask to join" : "Couldn't send the invite", 'error')
       return false
     }
   }
+
+  // Outcomes of a request we sent: pulled into the session, or turned down.
+  useEffect(() => {
+    const socket = getSocket()
+    if (!socket) return undefined
+
+    const onAccepted = (data) => {
+      if (!data || !data.sessionId) return
+      notify(`${data.fromUser} let you in`, 'success')
+      openLiveSession({
+        sessionId: data.sessionId,
+        mode: data.mode || 'couple',
+        partner: data.partner
+      })
+      onNavigate('couple-watch')
+    }
+    const onDeclined = (data) => {
+      setInviteReset((n) => n + 1)
+      notify(
+        data && data.fromUser ? `${data.fromUser} can't do right now` : 'Request declined',
+        'warning'
+      )
+    }
+
+    socket.on('join-request-accepted', onAccepted)
+    socket.on('join-request-declined', onDeclined)
+    return () => {
+      socket.off('join-request-accepted', onAccepted)
+      socket.off('join-request-declined', onDeclined)
+    }
+  }, [notify, openLiveSession, onNavigate])
 
   if (isLoading) {
     return (
@@ -140,6 +180,8 @@ const Dashboard = ({ onNavigate }) => {
       </header>
 
       <main className="dashboard-content">
+        <JoinRequestList onAccepted={() => onNavigate('couple-watch')} />
+
         {partnerList.length > 0 ? (
           <div className="partner-list">
             {partnerList.map((p) => (
@@ -148,6 +190,7 @@ const Dashboard = ({ onNavigate }) => {
                 partner={p}
                 onWatch={(partner) => handleWatchTogether(partner)}
                 onInvite={handleInvite}
+                resetSignal={inviteReset}
               />
             ))}
           </div>

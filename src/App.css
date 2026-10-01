@@ -4467,3 +4467,193 @@ color: #fff;
 .install-btn.installed:hover {
   transform: none;
 }
+
+/* ============ Join requests: ask, accept, decline ============ */
+.join-requests {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 420px;
+  min-width: 0;
+}
+
+.join-request {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: #16161F;
+  border: 1px solid #262635;
+}
+
+.join-request-avatar {
+  position: relative;
+  flex-shrink: 0;
+  line-height: 0;
+}
+
+.join-request-dot {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #16161F;
+  background: var(--theme-accent);
+  animation: livePulse 2s infinite;
+}
+
+.join-request-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.join-request-name {
+  font-family: var(--font-heading);
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.join-request-hint {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--theme-accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.join-request-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.join-request-btn {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 9px;
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.join-request-btn.is-decline {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+}
+
+.join-request-btn.is-accept {
+  border: none;
+  background: var(--theme-grad);
+  color: #fff;
+}
+
+.join-request-btn:hover {
+  filter: brightness(1.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .join-request-dot {
+    animation: none;
+  }
+}
+
+/* ============ Phones: one screen, no page scrolling ============
+   The dashboard and the watch screens fit the viewport: the header stays
+   put and only the region that can overflow scrolls inside itself. Watch
+   history gets a bounded height so a long history can never stretch the
+   page. Nothing is hidden behind the browser or home-indicator bars.  */
+@media (max-width: 640px) {
+  .dashboard {
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .dashboard header {
+    flex-shrink: 0;
+    padding: 14px 16px;
+  }
+
+  .dashboard-content {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
+  }
+
+  /* Bounded so the history list can never make the screen long. */
+  .history-list {
+    max-height: 32dvh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-right: 2px;
+  }
+
+  .join-request-actions {
+    gap: 6px;
+  }
+
+  .join-request-btn {
+    padding: 0 11px;
+  }
+}
+
+@media (max-width: 780px) {
+  .couple-watch,
+  .group-watch,
+  .watch-session {
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+    gap: 10px;
+    padding: 12px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+
+  /* The video keeps its 16:9 shape but can never eat the chat below it. */
+  .couple-main .video-player,
+  .main-area .video-player,
+  .group-layout .video-player {
+    flex-shrink: 0;
+    max-height: 34dvh;
+  }
+
+  .couple-main,
+  .main-area {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .watch-header {
+    padding: 10px 12px;
+    gap: 10px;
+  }
+
+  /* Long names shrink instead of pushing the toolbar onto a second row. */
+  .watch-header .partner-info span {
+    max-width: 88px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
