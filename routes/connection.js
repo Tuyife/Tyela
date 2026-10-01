@@ -3,17 +3,20 @@ const { User, WatchSession } = require('../models/User.js')
 const { generateCode } = require('../utils/codeGenerator.js')
 const auth = require('../middleware/auth.js')
 const { getIO } = require('../utils/io.js')
-const { isOnline } = require('../utils/presence.js')
+const { isOnline, sessionMemberIds } = require('../utils/presence.js')
 const { sendPush } = require('../utils/push.js')
 
 const router = express.Router()
 
-// A session counts as "currently busy" only while it has seen recent activity,
-// so a lingering couple session from last week doesn't pin a partner as busy.
+// Backstop only. A session can stay "active" in the database long after
+// everyone has left (nobody ends it on disconnect), so liveness is decided by
+// live socket presence in the session room — see activeSessionFor.
 const BUSY_WINDOW_MS = 90 * 60 * 1000
 
-// If the user is an active member of a WatchSession right now, return its
-// brief (id/type/title) so a connected partner can show "Watching X".
+// The brief for the session a user is watching *right now*, or null.
+// A session only counts while that user still has a live socket in the room,
+// so leaving the watch screen or closing the app clears "Watching ..." at once
+// instead of lingering until the document goes stale.
 async function activeSessionFor(userId) {
   const session = await WatchSession.findOne({
     status: 'active',
@@ -28,6 +31,9 @@ async function activeSessionFor(userId) {
     .sort({ updatedAt: -1 })
     .select('sessionType video.title')
   if (!session) return null
+  // Live membership wins over the stored status: if this user has no socket in
+  // the room, they are not watching anything right now.
+  if (!sessionMemberIds(session._id).includes(String(userId))) return null
   return {
     sessionId: session._id,
     sessionType: session.sessionType,

@@ -20,7 +20,7 @@ const dotenv = require('dotenv')
 const { WatchSession } = require('./models/User.js')
 const Invite = require('./models/Invite.js')
 const { setIO } = require('./utils/io.js')
-const { markOnline, markOffline } = require('./utils/presence.js')
+const { markOnline, markOffline, sessionRooms, joinSessionRoom, leaveSessionRoom } = require('./utils/presence.js')
 
 dotenv.config()
 
@@ -85,7 +85,8 @@ app.use((err, req, res, next) => {
 // -------------------- Live layer: presence / chat / playback --------------------
 
 // sessionId -> Map<userId, brief>
-const sessionUsers = new Map()
+// Shared with utils/presence.js so route handlers can read live membership.
+const sessionUsers = sessionRooms
 
 function getBrief(sessionId, userId) {
   const room = sessionUsers.get(sessionId)
@@ -94,10 +95,7 @@ function getBrief(sessionId, userId) {
 }
 
 function removePresence(sessionId, userId) {
-  const room = sessionUsers.get(sessionId)
-  if (!room) return
-  room.delete(userId)
-  if (room.size === 0) sessionUsers.delete(sessionId)
+  leaveSessionRoom(sessionId, userId)
 }
 
 function broadcastPresence(sessionId) {
@@ -165,12 +163,7 @@ io.on('connection', (socket) => {
     socket.join(room)
     socket.sessionId = sessionId
 
-    let users = sessionUsers.get(sessionId)
-    if (!users) {
-      users = new Map()
-      sessionUsers.set(sessionId, users)
-    }
-    users.set(userId, { id: userId, name: socket.userName, avatarUrl: socket.avatarUrl })
+    joinSessionRoom(sessionId, userId, { id: userId, name: socket.userName, avatarUrl: socket.avatarUrl })
     broadcastPresence(sessionId)
 
     socket.to(room).emit('user-joined', { userId, name: socket.userName })
@@ -291,8 +284,9 @@ io.on('connection', (socket) => {
   })
 })
 
-// When a user leaves a couple session, pause it for the remaining partner,
-// let them know, and drop a "continue watching" invite at the saved position.
+// When a user leaves a session, close it out if nobody is left, pause it when
+// a partner steps away, and let them know — a session that is never ended stays
+// "active" in the database and makes the partner look busy forever.
 async function handlePartnerGone(sessionId, goneUserId) {
   try {
     const session = await WatchSession.findById(sessionId).select(
@@ -301,7 +295,24 @@ async function handlePartnerGone(sessionId, goneUserId) {
     if (!session || session.status === 'ended' || session.status === 'cancelled') return
     const room = sessionUsers.get(sessionId)
     const remaining = room && room.size ? Array.from(room.values()).map((u) => u.id) : []
-    if (remaining.length !== 1 || session.sessionType !== 'couple') return
+
+    // Group sessions end with their host; couple sessions end when empty.
+    const groupHostGone =
+      session.sessionType === 'group' &&
+      session.group &&
+      String(session.group.hostId) === String(goneUserId)
+
+    if (remaining.length === 0 || groupHostGone) {
+      const endedAt = new Date()
+      session.status = 'ended'
+      session.endedAt = endedAt
+      if (session.playbackState) session.playbackState.isPlaying = false
+      await session.save()
+      io.to(`session:${sessionId}`).emit('session-ended', { sessionId, endedAt })
+      return
+    }
+
+    if (session.sessionType !== 'couple' || remaining.length !== 1) return
 
     session.status = 'paused'
     session.pausedAt = new Date()

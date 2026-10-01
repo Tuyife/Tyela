@@ -27,4 +27,40 @@ function isOnline(userId) {
   return online.has(String(userId))
 }
 
-module.exports = { markOnline, markOffline, isOnline }
+// Live session membership: sessionId (string) -> Map<userId, brief>.
+// Shared with the socket layer so route handlers can ask "is this partner
+// actually watching right now?" instead of trusting a stale session status.
+const sessionRooms = new Map()
+
+function joinSessionRoom(sessionId, userId, brief) {
+  if (!sessionId || !userId) return
+  const key = String(sessionId)
+  let room = sessionRooms.get(key)
+  if (!room) {
+    room = new Map()
+    sessionRooms.set(key, room)
+  }
+  room.set(String(userId), brief || { id: String(userId), name: 'User', avatarUrl: '' })
+}
+
+function leaveSessionRoom(sessionId, userId) {
+  const room = sessionRooms.get(String(sessionId))
+  if (!room) return
+  room.delete(String(userId))
+  if (room.size === 0) sessionRooms.delete(String(sessionId))
+}
+
+function sessionMemberIds(sessionId) {
+  const room = sessionRooms.get(String(sessionId))
+  return room ? Array.from(room.keys()) : []
+}
+
+module.exports = {
+  markOnline,
+  markOffline,
+  isOnline,
+  sessionRooms,
+  joinSessionRoom,
+  leaveSessionRoom,
+  sessionMemberIds
+}
