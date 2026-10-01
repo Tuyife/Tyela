@@ -276,6 +276,8 @@
   background: var(--bg-gradient);
   display: flex;
   flex-direction: column;
+  width: 100%;
+  min-width: 0;
 }
 
 .dashboard header {
@@ -376,6 +378,8 @@
   gap: 28px;
   padding: 24px;
   text-align: center;
+  width: 100%;
+  min-width: 0;
 }
 
 .partner-status {
@@ -416,6 +420,8 @@
   gap: 16px;
   flex-wrap: wrap;
   justify-content: center;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .dashboard-loading {
@@ -2889,6 +2895,7 @@ color: #fff;
   box-shadow: var(--shadow-card);
   width: 100%;
   max-width: 720px;
+  min-width: 0;
   flex-wrap: wrap;
   text-align: left;
 }
@@ -2970,6 +2977,7 @@ color: #fff;
 .history-section {
   width: 100%;
   max-width: 720px;
+  min-width: 0;
   text-align: left;
 }
 
@@ -3819,6 +3827,7 @@ color: #fff;
   gap: 14px;
   width: 100%;
   max-width: 720px;
+  min-width: 0;
 }
 
 /* ============ Mobile breathing room: no overlapping ============ */
