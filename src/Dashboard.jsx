@@ -8,7 +8,7 @@ import Avatar from './components/Avatar.jsx'
 import WatchHistory from './components/WatchHistory.jsx'
 import ConnectionCard from './components/ConnectionCard.jsx'
 import JoinRequestList from './components/JoinRequestList.jsx'
-import { getSocket } from './socket.js'
+import useSocketEvent from './hooks/useSocketEvent.js'
 import OnboardingOverlay from './components/OnboardingTutorial/OnboardingOverlay.jsx'
 import InstallButton from './components/InstallButton.jsx'
 import useOnboarding from './hooks/useOnboarding.js'
@@ -112,35 +112,27 @@ const Dashboard = ({ onNavigate }) => {
   }
 
   // Outcomes of a request we sent: pulled into the session, or turned down.
-  useEffect(() => {
-    const socket = getSocket()
-    if (!socket) return undefined
+  const handleAccepted = (data) => {
+    if (!data || !data.sessionId) return
+    notify(`${data.fromUser} let you in`, 'success')
+    openLiveSession({
+      sessionId: data.sessionId,
+      mode: data.mode || 'couple',
+      partner: data.partner
+    })
+    onNavigate('couple-watch')
+  }
 
-    const onAccepted = (data) => {
-      if (!data || !data.sessionId) return
-      notify(`${data.fromUser} let you in`, 'success')
-      openLiveSession({
-        sessionId: data.sessionId,
-        mode: data.mode || 'couple',
-        partner: data.partner
-      })
-      onNavigate('couple-watch')
-    }
-    const onDeclined = (data) => {
-      setInviteReset((n) => n + 1)
-      notify(
-        data && data.fromUser ? `${data.fromUser} can't do right now` : 'Request declined',
-        'warning'
-      )
-    }
+  const handleDeclined = (data) => {
+    setInviteReset((n) => n + 1)
+    notify(
+      data && data.fromUser ? `${data.fromUser} can't do right now` : 'Request declined',
+      'warning'
+    )
+  }
 
-    socket.on('join-request-accepted', onAccepted)
-    socket.on('join-request-declined', onDeclined)
-    return () => {
-      socket.off('join-request-accepted', onAccepted)
-      socket.off('join-request-declined', onDeclined)
-    }
-  }, [notify, openLiveSession, onNavigate])
+  useSocketEvent('join-request-accepted', handleAccepted)
+  useSocketEvent('join-request-declined', handleDeclined)
 
   if (isLoading) {
     return (

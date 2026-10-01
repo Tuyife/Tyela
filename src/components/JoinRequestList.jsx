@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { apiGet, apiPost } from '../lib/api.js'
 import { useNotifications } from '../context/NotificationContext.jsx'
 import { useLiveSession } from '../live/LiveSessionContext.jsx'
-import { getSocket } from '../socket.js'
+import useSocketEvent from '../hooks/useSocketEvent.js'
 import Avatar from './Avatar.jsx'
 import '../App.css'
 
@@ -19,6 +19,7 @@ const JoinRequestList = ({ onAccepted, variant = 'inline' }) => {
   // The dashboard shows its own inline copy, so the floating one stands down
   // there - that also keeps us from polling the same list twice.
   const standsDown = variant === 'float' && location.pathname === '/dashboard'
+  const loadRef = useRef(() => {})
 
   useEffect(() => {
     if (standsDown) return undefined
@@ -31,18 +32,19 @@ const JoinRequestList = ({ onAccepted, variant = 'inline' }) => {
         .catch(() => {})
     }
 
+    loadRef.current = load
     load()
-    // Poll as a safety net; the socket event below is the fast path.
+    // Poll as a safety net; the socket event is the fast path.
     const timer = setInterval(load, 10000)
-    const socket = getSocket()
-    const onRequest = () => load()
-    if (socket) socket.on('join-request', onRequest)
     return () => {
       cancelled = true
       clearInterval(timer)
-      if (socket) socket.off('join-request', onRequest)
+      loadRef.current = () => {}
     }
   }, [standsDown])
+
+  // A new request refreshes the list, wherever we are.
+  useSocketEvent('join-request', () => loadRef.current())
 
   const handleAccept = async (request) => {
     try {
