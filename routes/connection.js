@@ -4,8 +4,36 @@ const { generateCode } = require('../utils/codeGenerator.js')
 const auth = require('../middleware/auth.js')
 const { getIO } = require('../utils/io.js')
 const { isOnline } = require('../utils/presence.js')
+const { sendPush } = require('../utils/push.js')
 
 const router = express.Router()
+
+// A session counts as "currently busy" only while it has seen recent activity,
+// so a lingering couple session from last week doesn't pin a partner as busy.
+const BUSY_WINDOW_MS = 90 * 60 * 1000
+
+// If the user is an active member of a WatchSession right now, return its
+// brief (id/type/title) so a connected partner can show "Watching X".
+async function activeSessionFor(userId) {
+  const session = await WatchSession.findOne({
+    status: 'active',
+    updatedAt: { $gt: new Date(Date.now() - BUSY_WINDOW_MS) },
+    $or: [
+      { 'couple.user1Id': userId },
+      { 'couple.user2Id': userId },
+      { 'group.hostId': userId },
+      { 'group.participantIds': userId }
+    ]
+  })
+    .sort({ updatedAt: -1 })
+    .select('sessionType video.title')
+  if (!session) return null
+  return {
+    sessionId: session._id,
+    sessionType: session.sessionType,
+    sessionTitle: session.video && session.video.title ? session.video.title : ''
+  }
+}
 
 // Migrate legacy single-partner accounts (partnerId) into the partners array,
 // so existing couples keep working alongside the new multi-partner support.
@@ -196,7 +224,8 @@ router.post('/start', auth, async (req, res) => {
   }
 })
 
-// Live connection status: every partner with their real-time online state
+// Live connection status: every partner with their real-time online state,
+// plus whether they are busy in an active watch session right now.
 router.get('/status', auth, async (req, res) => {
   try {
     const user = await User.findById(req.userId).select('partners partnerId')
@@ -204,9 +233,27 @@ router.get('/status', auth, async (req, res) => {
       return res.status(404).json({ error: 'User not found' })
     }
     const partners = await partnersOf(user)
+    const enriched = []
+    for (const p of partners) {
+      const online = isOnline(p.userId)
+      let busy = false
+      let sessionId
+      let sessionType
+      let sessionTitle
+      if (online) {
+        const active = await activeSessionFor(p.userId)
+        if (active) {
+          busy = true
+          sessionId = active.sessionId
+          sessionType = active.sessionType
+          sessionTitle = active.sessionTitle
+        }
+      }
+      enriched.push({ ...p, online, busy, sessionId, sessionType, sessionTitle })
+    }
     res.json({
       connected: partners.length > 0,
-      partners: partners.map((p) => ({ ...p, online: isOnline(p.userId) }))
+      partners: enriched
     })
   } catch (error) {
     console.error('Connection status error:', error)
@@ -249,6 +296,62 @@ router.post('/disconnect', auth, async (req, res) => {
     res.json({ success: true })
   } catch (error) {
     console.error('Disconnect error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// Ask a partner to join your watch, or invite an offline partner to watch
+// together. Delivers a push notification (plus a live socket nudge when the
+// partner has a device around). This is a "tap on the shoulder", distinct
+// from the session-bound invite that `/api/invites/send` creates.
+router.post('/invite', auth, async (req, res) => {
+  try {
+    const { partnerId } = req.body
+    const kind = req.body.kind === 'join' ? 'join' : 'watch'
+    if (!partnerId) {
+      return res.status(400).json({ error: 'partnerId required' })
+    }
+
+    const me = await User.findById(req.userId).select('displayName partners')
+    const isPartner = (me.partners || []).some(
+      (p) => p.userId && String(p.userId) === String(partnerId)
+    )
+    if (!isPartner) {
+      return res.status(403).json({ error: 'Not connected with this user' })
+    }
+
+    const partner = await User.findById(partnerId).select('displayName')
+    if (!partner) {
+      return res.status(404).json({ error: 'Partner not found' })
+    }
+
+    const fromName = me.displayName
+    const io = getIO()
+    if (io) {
+      io.to(`user:${String(partnerId)}`).emit('connection-invite', {
+        fromUser: fromName,
+        kind,
+        url: '/dashboard'
+      })
+    }
+
+    if (kind === 'join') {
+      await sendPush(partnerId, {
+        title: 'Wants to join 🍿',
+        message: `${fromName} asked to join your watch. Tap to catch up.`,
+        url: '/dashboard'
+      })
+    } else {
+      await sendPush(partnerId, {
+        title: 'Watch together? 🎬',
+        message: `${fromName} is inviting you to grab a movie and watch together.`,
+        url: '/dashboard'
+      })
+    }
+
+    res.json({ sent: true })
+  } catch (error) {
+    console.error('Connection invite error:', error)
     res.status(500).json({ error: 'Internal server error' })
   }
 })

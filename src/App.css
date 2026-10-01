@@ -3830,6 +3830,142 @@ color: #fff;
   min-width: 0;
 }
 
+/* ============ Compact connection card ============
+   One 64px row: avatar + status dot, name over status, single
+   action pill on the right. Online / Busy / Offline.            */
+.connection-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 420px;
+  min-width: 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: #16161F;
+  border: 1px solid #262635;
+  text-align: left;
+}
+
+.connection-card-avatar {
+  position: relative;
+  flex-shrink: 0;
+  line-height: 0;
+}
+
+.connection-card-dot {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #16161F;
+  background: #6B7280;
+}
+
+.connection-card.is-online .connection-card-dot {
+  background: var(--success);
+  animation: livePulse 2s infinite;
+}
+
+.connection-card.is-busy .connection-card-dot {
+  background: #F59E0B;
+}
+
+.connection-card-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.connection-card-name {
+  font-family: var(--font-heading);
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.connection-card-status {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.connection-card.is-online .connection-card-status {
+  color: var(--success);
+}
+
+.connection-card.is-busy .connection-card-status {
+  color: #F59E0B;
+}
+
+.connection-card.is-offline .connection-card-status {
+  color: var(--text-secondary);
+}
+
+.connection-card.is-offline .avatar-img,
+.connection-card.is-offline .avatar-initials {
+  filter: grayscale(0.85) brightness(0.78);
+  opacity: 0.7;
+}
+
+.connection-card-action {
+  flex-shrink: 0;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 9px;
+  border: 1px solid rgba(124, 58, 237, 0.45);
+  background: rgba(124, 58, 237, 0.12);
+  color: var(--accent-text);
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    filter 0.2s ease;
+}
+
+.connection-card.is-online .connection-card-action {
+  border: none;
+  background: var(--theme-grad);
+  color: #fff;
+}
+
+.connection-card-action:hover {
+  filter: brightness(1.08);
+}
+
+.connection-card-action:disabled {
+  cursor: default;
+  filter: none;
+}
+
+.connection-card.is-offline.is-sent .connection-card-action,
+.connection-card.is-busy.is-sent .connection-card-action {
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--success);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .connection-card-dot {
+    animation: none;
+  }
+}
+
+
 /* ============ Mobile breathing room: no overlapping ============ */
 @media (max-width: 780px) {
   .dashboard header,

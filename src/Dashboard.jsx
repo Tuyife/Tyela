@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
-import { LuHouse, LuUsers, LuUnplug } from 'react-icons/lu'
+import { LuHouse, LuUsers } from 'react-icons/lu'
 import { useUser } from './UserContext.jsx'
 import { useLiveSession } from './live/LiveSessionContext.jsx'
 import { apiGet, apiPost } from './lib/api.js'
 import Avatar from './components/Avatar.jsx'
 import WatchHistory from './components/WatchHistory.jsx'
+import ConnectionCard from './components/ConnectionCard.jsx'
 import OnboardingOverlay from './components/OnboardingTutorial/OnboardingOverlay.jsx'
 import InstallButton from './components/InstallButton.jsx'
 import useOnboarding from './hooks/useOnboarding.js'
@@ -73,7 +74,7 @@ const Dashboard = ({ onNavigate }) => {
         onNavigate('couple-watch')
         return
       }
-    } catch (error) {
+    } catch {
       /* fall through to code entry */
     }
     onNavigate('connection-code')
@@ -89,9 +90,13 @@ const Dashboard = ({ onNavigate }) => {
     onNavigate(isCouple ? 'couple-watch' : 'group-watch')
   }
 
-  const handleDisconnect = async (partner) => {
-    await apiPost('/api/connection/disconnect', { partnerId: partner.userId }).catch(() => {})
-    setPartnerList((prev) => prev.filter((p) => String(p.userId) !== String(partner.userId)))
+  const handleInvite = async (partner, kind = 'watch') => {
+    try {
+      await apiPost('/api/connection/invite', { partnerId: partner.userId, kind })
+      return true
+    } catch {
+      return false
+    }
   }
 
   if (isLoading) {
@@ -135,33 +140,12 @@ const Dashboard = ({ onNavigate }) => {
         {partnerList.length > 0 ? (
           <div className="partner-list">
             {partnerList.map((p) => (
-              <div className="partner-card status-section" key={String(p.userId)}>
-                <Avatar src={p.avatarUrl} name={p.displayName} size={58} />
-                <div className="partner-card-meta">
-                  <span className="partner-card-label">You&apos;re connected with</span>
-                  <strong className="partner-card-name">{p.displayName}</strong>
-                  <span className="partner-card-online">
-                    <span className={`status-dot ${p.online ? '' : 'offline'}`} />
-                    {p.online ? 'Online now' : 'Offline right now'}
-                  </span>
-                </div>
-                <div className="partner-card-actions">
-                  <button
-                    className="btn-primary"
-                    data-onboarding="watch-together"
-                    onClick={() => handleWatchTogether(p)}
-                  >
-                    Watch together
-                  </button>
-                  <button
-                    className="btn-secondary partner-disconnect"
-                    onClick={() => handleDisconnect(p)}
-                    title="Disconnect from this partner"
-                  >
-                    <LuUnplug size={14} /> Disconnect
-                  </button>
-                </div>
-              </div>
+              <ConnectionCard
+                key={String(p.userId)}
+                partner={p}
+                onWatch={(partner) => handleWatchTogether(partner)}
+                onInvite={handleInvite}
+              />
             ))}
           </div>
         ) : (

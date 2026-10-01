@@ -1,7 +1,8 @@
-import { useRef, useState } from 'react'
-import { LuArrowLeft, LuCamera, LuCheck, LuX } from 'react-icons/lu'
+import { useEffect, useRef, useState } from 'react'
+import { LuArrowLeft, LuCamera, LuCheck, LuUnplug, LuX } from 'react-icons/lu'
 import { useUser, THEME_COLORS } from './UserContext.jsx'
 import Avatar from './components/Avatar.jsx'
+import { apiGet, apiPost } from './lib/api.js'
 import { isMuted, toggleMute } from './utils/notificationSound.js'
 import { requestTutorialStart } from './hooks/useOnboarding.js'
 import usePushNotifications from './hooks/usePushNotifications.js'
@@ -27,7 +28,20 @@ const Profile = ({ onNavigate }) => {
   const [muted, setMuted] = useState(() => isMuted())
   const push = usePushNotifications()
   const [pushBusy, setPushBusy] = useState(false)
+  const [partners, setPartners] = useState([])
   const fileInputRef = useRef(null)
+
+  useEffect(() => {
+    apiGet('/api/connection/status')
+      .then((data) => setPartners(data.partners || []))
+      .catch(() => {})
+  }, [])
+
+  const handleDisconnect = async (partner) => {
+    await apiPost('/api/connection/disconnect', { partnerId: partner.userId }).catch(() => {})
+    setPartners((prev) => prev.filter((p) => String(p.userId) !== String(partner.userId)))
+    showToast(`Disconnected from ${partner.displayName}`)
+  }
 
   const showToast = (message) => {
     setToast(message)
@@ -225,6 +239,29 @@ const Profile = ({ onNavigate }) => {
             <LuX size={14} /> Remove new avatar
           </button>
         )}
+
+        <div className="theme-section notif-section">
+          <label>Connected partners</label>
+          {partners.length === 0 ? (
+            <p className="theme-hint">No partners connected yet. Connect from the dashboard.</p>
+          ) : (
+            partners.map((p) => (
+              <div className="notif-row" key={String(p.userId)}>
+                <div className="notif-copy">
+                  <strong>{p.displayName}</strong>
+                  <p className="theme-hint">{p.online ? 'Online now' : 'Offline right now'}</p>
+                </div>
+                <button
+                  type="button"
+                  className="btn-secondary partner-disconnect"
+                  onClick={() => handleDisconnect(p)}
+                >
+                  <LuUnplug size={14} /> Disconnect
+                </button>
+              </div>
+            ))
+          )}
+        </div>
 
         <button
           type="button"
