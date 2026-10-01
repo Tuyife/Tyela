@@ -5,6 +5,7 @@ import { resyncPushSubscription } from './hooks/usePushNotifications.js'
 import Landing from './Landing.jsx'
 import SplashScreen from './SplashScreen.jsx'
 import ConnectionInvites from './components/ConnectionInvites.jsx'
+import JoinRequestList from './components/JoinRequestList.jsx'
 import LoginScreen from './LoginScreen.jsx'
 import SignupScreen from './SignupScreen.jsx'
 import Dashboard from './Dashboard.jsx'
@@ -69,6 +70,8 @@ const AppRoutes = () => {
     <NotificationProvider>
       <LiveSessionProvider navigate={navigate}>
         <ConnectionInvites />
+        {/* Requests reach you wherever you are - inside a session too. */}
+        <JoinRequestList variant="float" onAccepted={() => navigate('/couple-watch')} />
         <Routes>
         <Route path="/" element={<Landing onNavigate={(page) => navigate(`/${page}`)} />} />
       <Route path="login" element={<LoginScreen onNavigate={(page) => navigate(`/${page}`)} />} />

@@ -4634,7 +4634,8 @@ color: #fff;
   .couple-main .video-player,
   .main-area .video-player,
   .group-layout .video-player {
-    flex-shrink: 0;
+    flex: 0 1 auto;
+    min-height: 110px;
     max-height: 34dvh;
   }
 
@@ -4643,6 +4644,28 @@ color: #fff;
     flex: 1;
     min-height: 0;
   }
+
+  /* The composer is never the thing that gets squeezed out: it keeps its
+     height, and the message list above it absorbs the difference. */
+  .couple-main .message-input,
+  .main-area .message-input,
+  .group-layout .message-input,
+  .chat-section .message-input {
+    flex-shrink: 0;
+  }
+
+  .couple-main .chat-messages,
+  .main-area .chat-messages,
+  .chat-section .chat-messages {
+    min-height: 0;
+  }
+
+  .couple-main .chat-section,
+  .main-area .chat-section {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
 
   .watch-header {
     padding: 10px 12px;
@@ -4655,5 +4678,45 @@ color: #fff;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+}
+
+/* Requests that arrive while you're inside a session: a card pinned to the
+   top of the screen, clear of the chat and the composer's thumb zone. */
+.join-requests.is-float {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 62px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 24px);
+  max-width: 420px;
+  z-index: 60;
+  margin: 0;
+  animation: requestSlideIn 0.28s ease;
+  pointer-events: none;
+}
+
+.join-requests.is-float .join-request {
+  pointer-events: auto;
+  background: rgba(22, 22, 31, 0.97);
+  box-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+@keyframes requestSlideIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -10px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .join-requests.is-float {
+    animation: none;
   }
 }
