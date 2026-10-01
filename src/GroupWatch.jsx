@@ -22,7 +22,7 @@ const GroupWatch = ({ onNavigate }) => {
         setCopied(true)
         setTimeout(() => setCopied(false), 1500)
       }
-    } catch (err) {
+    } catch {
       console.error('Failed to copy room code')
     }
   }

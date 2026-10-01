@@ -57,7 +57,7 @@ const ResumeInviteOverlay = ({ onNavigate }) => {
       if (invite.inviteId) {
         await apiPost(`/api/invites/${invite.inviteId}/decline`, {}).catch(() => {})
       }
-    } catch (error) {
+    } catch {
       /* ignore */
     }
     clearInvite()

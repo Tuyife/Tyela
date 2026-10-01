@@ -13,7 +13,7 @@ const formatCountdown = (ms) => {
 }
 
 const ConnectionStatus = ({ isOnline, partnerName, deadline }) => {
-  const [now, setNow] = useState(Date.now())
+  const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
     if (isOnline) return undefined
@@ -23,18 +23,28 @@ const ConnectionStatus = ({ isOnline, partnerName, deadline }) => {
 
   if (isOnline) return null
 
-  const left = deadline ? deadline - now : 0
-  const expired = left <= 0
+  // No countdown means the partner simply isn't here yet - not an expired
+  // session. Only a deadline that has actually run out counts as expired.
+  const left = deadline ? deadline - now : null
+  const expired = left !== null && left <= 0
 
   return (
     <div className={`connection-status ${expired ? 'connection-status-expired' : ''}`}>
       <LuWifiOff size={20} />
       <div className="connection-status-text">
-        <strong>{expired ? 'Session expired' : 'Waiting for partner...'}</strong>
+        <strong>
+          {expired
+            ? 'Session expired'
+            : deadline
+              ? 'Waiting for partner...'
+              : 'Partner not here yet'}
+        </strong>
         <span>
           {expired
             ? `${partnerName || 'Your partner'} didn't return in time, the session has ended.`
-            : `${partnerName || 'Your partner'} disconnected. Auto-ending the session in ${formatCountdown(left)}...`}
+            : deadline
+              ? `${partnerName || 'Your partner'} disconnected. Auto-ending the session in ${formatCountdown(left)}...`
+              : `${partnerName || 'Your partner'} isn't in the session yet. The movie is paused until they join.`}
         </span>
       </div>
       {!expired && (

@@ -40,4 +40,44 @@ const useSocketEvent = (event, handler) => {
   }, [event])
 }
 
+// Same idea for a whole map of events. Handlers are read through a ref, so the
+// map can be rebuilt on every render with fresh state without rebinding.
+const useSocketEvents = (handlers) => {
+  const handlersRef = useRef(handlers)
+
+  useEffect(() => {
+    handlersRef.current = handlers
+  })
+
+  const namesKey = Object.keys(handlers).join('|')
+
+  useEffect(() => {
+    let bound = null
+    const listeners = new Map()
+    Object.keys(handlers).forEach((name) => {
+      listeners.set(name, (payload) => {
+        const fn = handlersRef.current[name]
+        if (fn) fn(payload)
+      })
+    })
+
+    const attach = () => {
+      const socket = getSocket()
+      if (!socket || socket === bound) return
+      if (bound) listeners.forEach((fn, name) => bound.off(name, fn))
+      bound = socket
+      listeners.forEach((fn, name) => bound.on(name, fn))
+    }
+
+    attach()
+    const timer = setInterval(attach, 2000)
+
+    return () => {
+      clearInterval(timer)
+      if (bound) listeners.forEach((fn, name) => bound.off(name, fn))
+    }
+  }, [namesKey])
+}
+
+export { useSocketEvent, useSocketEvents }
 export default useSocketEvent

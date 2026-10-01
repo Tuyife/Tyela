@@ -6,6 +6,7 @@ import { attachToSession } from '../lib/attachVideo.js'
 import { consumePendingSession } from '../videoStore.js'
 import { playMessageBeep } from '../utils/notificationSound.js'
 import { useNotifications } from '../context/NotificationContext.jsx'
+import { useSocketEvent, useSocketEvents } from '../hooks/useSocketEvent.js'
 
 const LiveSessionContext = createContext(null)
 
@@ -44,41 +45,24 @@ export const LiveSessionProvider = ({ children, navigate }) => {
   const sessionId = session ? session.sessionId : null
   const mode = session ? session.mode : null
 
-  const fetchSession = useCallback(async (id) => {
-    if (!id) return
+  const openLiveSession = useCallback((next) => {
+    setSession(next)
     try {
-      const data = await apiGet(`/api/sessions/${id}`)
-      const s = data.session
-      setVideo(s && s.video && s.video.url ? s.video : null)
-      setPlayback(s && s.playbackState ? s.playbackState : { isPlaying: false, currentTime: 0 })
-      setMessages((s && s.messages) || [])
-    } catch (error) {
-      /* session may be gone - keep current state */
+      localStorage.setItem('tyelaLive', JSON.stringify(next))
+    } catch {
+      /* ignore */
     }
+    setMessages([])
+    setVideo(null)
+    setPlayback({ isPlaying: false, currentTime: 0 })
+    setParticipants([])
+    setPartnerTyping(false)
+    setPartnerOnline(true)
+    setOfflineDeadline(null)
+    setSessionPaused(false)
+    setIncomingInvite(null)
+    setPeerBuffering(null)
   }, [])
-
-  const openLiveSession = useCallback(
-    (next) => {
-      setSession(next)
-      try {
-        localStorage.setItem('tyelaLive', JSON.stringify(next))
-      } catch (error) {
-        /* ignore */
-      }
-      setMessages([])
-      setVideo(null)
-      setPlayback({ isPlaying: false, currentTime: 0 })
-      setParticipants([])
-      setPartnerTyping(false)
-      setPartnerOnline(true)
-      setOfflineDeadline(null)
-      setSessionPaused(false)
-      setIncomingInvite(null)
-      setPeerBuffering(null)
-      fetchSession(next.sessionId)
-    },
-    [fetchSession]
-  )
 
   const leaveSession = useCallback(() => {
     const s = getSocket()
@@ -99,10 +83,40 @@ export const LiveSessionProvider = ({ children, navigate }) => {
     setPeerBuffering(null)
     try {
       localStorage.removeItem('tyelaLive')
-    } catch (error) {
+    } catch {
       /* ignore */
     }
   }, [sessionId])
+
+  // Load the session from the server and make sure it's still live. The
+  // persisted session in localStorage can point at a session that has since
+  // ended, and showing that as a watch screen reads as "session expired".
+  useEffect(() => {
+    if (!sessionId) return undefined
+    let cancelled = false
+
+    apiGet(`/api/sessions/${sessionId}`)
+      .then((data) => {
+        if (cancelled) return
+        const s = data && data.session
+        if (!s || s.status === 'ended' || s.status === 'cancelled') {
+          leaveSession()
+          notify('That session has ended', 'info')
+          if (navigate) navigate('dashboard')
+          return
+        }
+        if (s.video && s.video.url) setVideo(s.video)
+        if (s.playbackState) setPlayback(s.playbackState)
+        if (Array.isArray(s.messages)) setMessages(s.messages)
+      })
+      .catch(() => {
+        /* unreachable session - keep what we have */
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [sessionId, leaveSession, navigate, notify])
 
   // Ensure a socket exists once logged in
   useEffect(() => {
@@ -120,25 +134,26 @@ export const LiveSessionProvider = ({ children, navigate }) => {
       setVideo(null)
       try {
         localStorage.removeItem('tyelaLive')
-      } catch (error) {
+      } catch {
         /* ignore */
       }
     }
   }, [isLoggedIn, session])
 
-  // Socket events
-  useEffect(() => {
+  // Socket events. Bound through the socket-aware hooks: on reload the socket
+  // is restored *after* this component mounts, so a one-shot bind here would
+  // leave the user outside their own session room.
+  const onConnect = useCallback(() => {
+    setConnected(true)
     const s = getSocket()
-    if (!s) return undefined
+    if (s && sessionId) s.emit('join-session', { sessionId })
+  }, [sessionId])
 
-    const onConnect = () => {
-      setConnected(true)
-      if (sessionId) s.emit('join-session', { sessionId })
-    }
-    const onDisconnect = () => setConnected(false)
+  useSocketEvent('connect', onConnect)
+  useSocketEvent('disconnect', () => setConnected(false))
 
-    const handlers = {
-      'presence-update': (list) => setParticipants(list || []),
+  useSocketEvents({
+    'presence-update': (list) => setParticipants(list || []),
       'message-received': (msg) => {
         setMessages((prev) => [...prev, msg].slice(-200))
         if (msg && msg.senderName && msg.senderId !== user.id) {
@@ -183,6 +198,11 @@ export const LiveSessionProvider = ({ children, navigate }) => {
       'session-ended': () => {
         setSessionPaused(false)
         setOfflineDeadline(null)
+        // The session is over: get off the watch screen instead of leaving
+        // everyone staring at a player that will never move again.
+        leaveSession()
+        notify('The session ended', 'info')
+        if (navigate) navigate('dashboard')
       },
       'partner-offline': (data) => {
         setPartnerOnline(false)
@@ -208,18 +228,28 @@ export const LiveSessionProvider = ({ children, navigate }) => {
         if (peerTimerRef.current) clearTimeout(peerTimerRef.current)
         setPeerBuffering(null)
       }
-    }
-    Object.entries(handlers).forEach(([event, fn]) => s.on(event, fn))
-    s.on('connect', onConnect)
-    s.on('disconnect', onDisconnect)
+  })
 
-    if (s.connected && sessionId) s.emit('join-session', { sessionId })
-
+  // The "partner is buffering" auto-dismiss timer. Cleared when the screen
+  // goes away so it can't fire into a session we're no longer in.
+  useEffect(() => {
     return () => {
-      s.off('connect', onConnect)
-      s.off('disconnect', onDisconnect)
-      Object.entries(handlers).forEach(([event, fn]) => s.off(event, fn))
       if (peerTimerRef.current) clearTimeout(peerTimerRef.current)
+    }
+  }, [sessionId])
+
+  // Join the room as soon as a socket is available, and rejoin after a reload
+  // or a dropped connection.
+  useEffect(() => {
+    if (!sessionId) return undefined
+    const join = () => {
+      const s = getSocket()
+      if (s && s.connected) s.emit('join-session', { sessionId })
+    }
+    join()
+    const timer = setInterval(join, 5000)
+    return () => {
+      clearInterval(timer)
     }
   }, [sessionId])
 
@@ -241,7 +271,7 @@ export const LiveSessionProvider = ({ children, navigate }) => {
       if (pending && pending.audience === 'partner') {
         try {
           await attachToSession(data.sessionId, pending)
-        } catch (e) {
+        } catch {
           /* movie attached best-effort */
         }
       }
@@ -429,6 +459,7 @@ export const LiveSessionProvider = ({ children, navigate }) => {
     [
       session,
       sessionId,
+      mode,
       messages,
       participants,
       video,

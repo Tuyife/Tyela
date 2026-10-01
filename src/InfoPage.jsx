@@ -1,4 +1,4 @@
-import { LuHouse, LuChevronRight, LuPlay, LuHeart, LuUsers, LuZap, LuShield, LuMail, LuCheck, LuInfo, LuFileText, LuLock, LuCookie, LuActivity, LuClock, LuSparkles, LuQuote, LuCode, LuServer, LuDatabase } from 'react-icons/lu'
+import { LuHouse, LuChevronRight, LuHeart, LuUsers, LuZap, LuShield, LuMail, LuCheck, LuInfo, LuFileText, LuLock, LuCookie, LuActivity, LuClock, LuSparkles, LuQuote, LuCode, LuServer, LuDatabase } from 'react-icons/lu'
 import { useUser } from './UserContext.jsx'
 import './App.css'
 

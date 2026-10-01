@@ -92,7 +92,7 @@ const ConnectionCode = ({ onNavigate }) => {
         const timer = setTimeout(() => setCopied(false), 2000)
         timersRef.current.push(timer)
       }
-    } catch (err) {
+    } catch {
       console.error('Failed to copy code')
     }
   }
@@ -106,7 +106,7 @@ const ConnectionCode = ({ onNavigate }) => {
       if (pending && pending.audience === 'group') {
         try {
           await attachToSession(next.sessionId, pending)
-        } catch (e) {
+        } catch {
           /* movie attached best-effort */
         }
       }
@@ -144,7 +144,7 @@ const ConnectionCode = ({ onNavigate }) => {
       if (pending && ((joinedGroup && pending.audience === 'group') || (!joinedGroup && pending.audience === 'partner'))) {
         try {
           await attachToSession(joined.sessionId, pending)
-        } catch (e) {
+        } catch {
           /* movie attached best-effort */
         }
       }

@@ -29,7 +29,7 @@ function loadLocalUser() {
   try {
     const raw = localStorage.getItem('tyelaUser')
     if (raw) return { ...DEFAULT_USER, ...JSON.parse(raw) }
-  } catch (error) {
+  } catch {
     /* ignore corrupted storage */
   }
   return DEFAULT_USER
@@ -93,7 +93,7 @@ async function checkTokenValid(token) {
     })
     const json = await res.json().catch(() => ({}))
     return json.valid === true
-  } catch (error) {
+  } catch {
     return null
   }
 }
@@ -111,7 +111,7 @@ export const UserProvider = ({ children }) => {
   useEffect(() => {
     try {
       localStorage.setItem('tyelaUser', JSON.stringify(user))
-    } catch (error) {
+    } catch {
       /* storage quota hit (large data-URL avatar) - ignore, keep in memory */
     }
   }, [user])
@@ -123,7 +123,7 @@ export const UserProvider = ({ children }) => {
       localStorage.setItem('tyelaUser', JSON.stringify(nextUser))
       if (token) localStorage.setItem('tyelaToken', token)
       localStorage.setItem('tyelaLoggedIn', 'true')
-    } catch (error) {
+    } catch {
       /* storage unavailable - keep in memory */
     }
     setIsLoggedIn(true)
@@ -178,7 +178,7 @@ export const UserProvider = ({ children }) => {
       ;['tyelaToken', 'tyelaLoggedIn', 'tyelaUser', 'tyelaLive', 'tyelaMode', 'tyelaFirstVisit'].forEach((k) =>
         localStorage.removeItem(k)
       )
-    } catch (error) {
+    } catch {
       /* ignore */
     }
     setUser(DEFAULT_USER)
@@ -203,7 +203,7 @@ export const UserProvider = ({ children }) => {
             setUser(refreshed)
             try {
               localStorage.setItem('tyelaUser', JSON.stringify(refreshed))
-            } catch (error) {
+            } catch {
               /* ignore */
             }
           })
@@ -215,7 +215,7 @@ export const UserProvider = ({ children }) => {
         ;['tyelaToken', 'tyelaLoggedIn', 'tyelaUser', 'tyelaLive', 'tyelaMode', 'tyelaFirstVisit'].forEach((k) =>
           localStorage.removeItem(k)
         )
-      } catch (error) {
+      } catch {
         /* ignore */
       }
       setUser(DEFAULT_USER)
@@ -234,7 +234,7 @@ export const UserProvider = ({ children }) => {
       if (avatarFile) {
         try {
           nextUser.avatarUrl = await resizeImage(avatarFile, 200)
-        } catch (error) {
+        } catch {
           nextUser.avatarUrl = URL.createObjectURL(avatarFile)
         }
       }
@@ -263,7 +263,7 @@ export const UserProvider = ({ children }) => {
           return { ok: true }
         }
         return { ok: false, error: (await res.json()).error || 'Could not save profile' }
-      } catch (error) {
+      } catch {
         return { ok: true, demo: true }
       }
     },

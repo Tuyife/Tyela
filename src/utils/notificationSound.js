@@ -22,7 +22,7 @@ export function playMessageBeep() {
     }
     blip(660, 0, 0.18)
     blip(880, 0.22, 0.12)
-  } catch (error) {
+  } catch {
     /* audio unavailable */
   }
 }
@@ -30,7 +30,7 @@ export function playMessageBeep() {
 export function isMuted() {
   try {
     return localStorage.getItem('tyelaMute') === '1'
-  } catch (error) {
+  } catch {
     return false
   }
 }
@@ -39,7 +39,7 @@ export function toggleMute() {
   const next = !isMuted()
   try {
     localStorage.setItem('tyelaMute', next ? '1' : '0')
-  } catch (error) {
+  } catch {
     /* ignore */
   }
   return next

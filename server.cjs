@@ -284,9 +284,10 @@ io.on('connection', (socket) => {
   })
 })
 
-// When a user leaves a session, close it out if nobody is left, pause it when
-// a partner steps away, and let them know — a session that is never ended stays
-// "active" in the database and makes the partner look busy forever.
+// When a user leaves a session, close it out if the host is gone, pause it for
+// whoever is left, and let them know. A session whose room simply empties (a
+// page reload, a brief disconnect) is only paused, never ended - it has to stay
+// resumable, and liveness is decided by socket presence anyway.
 async function handlePartnerGone(sessionId, goneUserId) {
   try {
     const session = await WatchSession.findById(sessionId).select(
@@ -296,19 +297,30 @@ async function handlePartnerGone(sessionId, goneUserId) {
     const room = sessionUsers.get(sessionId)
     const remaining = room && room.size ? Array.from(room.values()).map((u) => u.id) : []
 
-    // Group sessions end with their host; couple sessions end when empty.
+    // A group session can't outlive its host.
     const groupHostGone =
       session.sessionType === 'group' &&
       session.group &&
       String(session.group.hostId) === String(goneUserId)
 
-    if (remaining.length === 0 || groupHostGone) {
+    if (groupHostGone) {
       const endedAt = new Date()
       session.status = 'ended'
       session.endedAt = endedAt
       if (session.playbackState) session.playbackState.isPlaying = false
       await session.save()
       io.to(`session:${sessionId}`).emit('session-ended', { sessionId, endedAt })
+      return
+    }
+
+    // Everyone out (a reload, a closed tab): pause it so it can be resumed.
+    if (remaining.length === 0) {
+      if (session.status === 'active') {
+        session.status = 'paused'
+        session.pausedAt = new Date()
+        if (session.playbackState) session.playbackState.isPlaying = false
+        await session.save()
+      }
       return
     }
 

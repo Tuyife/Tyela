@@ -40,6 +40,24 @@ const WatchSession = ({ onNavigate }) => {
     )
   }
 
+  // Solo source handling. Declared before the live-session early return so the
+  // hook order never changes between the two renderings.
+  const isEmbed = Boolean(video && video.type !== 'media')
+
+  useEffect(() => {
+    if (file) {
+      const objectUrl = URL.createObjectURL(file)
+      setVideo({ type: 'media', src: objectUrl })
+      setErrorMsg('')
+      return () => URL.revokeObjectURL(objectUrl)
+    }
+    if (parsed) {
+      setVideo(parsed)
+      setErrorMsg('')
+    }
+    return undefined
+  }, [file, parsed])
+
   // Live session rendering: shared synced player + real chat
   if (isLive) {
     return (
@@ -72,22 +90,6 @@ const WatchSession = ({ onNavigate }) => {
   }
 
   // Solo / non-connected rendering
-  const isEmbed = Boolean(video && video.type !== 'media')
-
-  useEffect(() => {
-    if (file) {
-      const objectUrl = URL.createObjectURL(file)
-      setVideo({ type: 'media', src: objectUrl })
-      setErrorMsg('')
-      return () => URL.revokeObjectURL(objectUrl)
-    }
-    if (parsed) {
-      setVideo(parsed)
-      setErrorMsg('')
-    }
-    return undefined
-  }, [file, parsed])
-
   const handlePlay = () => videoRef.current && videoRef.current.play()
   const handlePause = () => videoRef.current && videoRef.current.pause()
   const goToPaste = () => onNavigate('paste-link')
