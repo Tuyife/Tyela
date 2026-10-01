@@ -220,6 +220,28 @@ io.on('connection', (socket) => {
     io.to(`session:${sessionId}`).emit('playback-update', { isPlaying: false, currentTime: currentTime || 0 })
   })
 
+  socket.on('sync-wait', ({ currentTime }) => {
+    const sessionId = socket.sessionId
+    const room = sessionId ? `session:${sessionId}` : null
+    if (!room) return
+    socket.to(room).emit('peer-waiting', {
+      userId,
+      name: socket.userName || 'Your partner',
+      currentTime: currentTime || 0
+    })
+  })
+
+  socket.on('sync-ready', ({ currentTime }) => {
+    const sessionId = socket.sessionId
+    const room = sessionId ? `session:${sessionId}` : null
+    if (!room) return
+    socket.to(room).emit('peer-ready', {
+      userId,
+      name: socket.userName || 'Your partner',
+      currentTime: currentTime || 0
+    })
+  })
+
   socket.on('send-message', ({ content, movieTimestamp }) => {
     const sessionId = socket.sessionId
     if (!sessionId || !content || !content.trim()) return

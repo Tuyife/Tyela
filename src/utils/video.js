@@ -5,13 +5,21 @@ export function toEmbedUrl(raw) {
     /(?:youtube\.com\/(?:watch\?.*(?:v=|#v=)|embed\/|shorts\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/
   )
   if (match) {
-    return { type: 'youtube', src: `https://www.youtube-nocookie.com/embed/${match[1]}?autoplay=1&rel=0` }
+    return {
+      type: 'youtube',
+      id: match[1],
+      src: `https://www.youtube-nocookie.com/embed/${match[1]}?autoplay=1&rel=0`
+    }
   }
   match = normalized.match(/(?:vimeo\.com|player\.vimeo\.com\/video)\/(\d+)/)
   if (match) {
-    return { type: 'vimeo', src: `https://player.vimeo.com/video/${match[1]}?autoplay=1` }
+    return {
+      type: 'vimeo',
+      id: match[1],
+      src: `https://player.vimeo.com/video/${match[1]}?autoplay=1`
+    }
   }
-  return { type: 'media', src: normalized }
+  return { type: 'media', id: null, src: normalized }
 }
 
 export function getVideoType(raw) {

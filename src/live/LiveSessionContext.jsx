@@ -32,7 +32,9 @@ export const LiveSessionProvider = ({ children, navigate }) => {
   const [offlineDeadline, setOfflineDeadline] = useState(null)
   const [sessionPaused, setSessionPaused] = useState(false)
   const [incomingInvite, setIncomingInvite] = useState(null)
+  const [peerBuffering, setPeerBuffering] = useState(null)
   const typingTimerRef = useRef(null)
+  const peerTimerRef = useRef(null)
   const playbackRef = useRef(playback)
 
   useEffect(() => {
@@ -72,6 +74,7 @@ export const LiveSessionProvider = ({ children, navigate }) => {
       setOfflineDeadline(null)
       setSessionPaused(false)
       setIncomingInvite(null)
+      setPeerBuffering(null)
       fetchSession(next.sessionId)
     },
     [fetchSession]
@@ -93,6 +96,7 @@ export const LiveSessionProvider = ({ children, navigate }) => {
     setOfflineDeadline(null)
     setSessionPaused(false)
     setIncomingInvite(null)
+    setPeerBuffering(null)
     try {
       localStorage.removeItem('tyelaLive')
     } catch (error) {
@@ -148,8 +152,10 @@ export const LiveSessionProvider = ({ children, navigate }) => {
           setPlayback({ isPlaying: true, currentTime: 0 })
         }
       },
-      'playback-update': (data) =>
-        setPlayback((prev) => ({ ...prev, isPlaying: !!data.isPlaying, currentTime: data.currentTime || 0 })),
+      'playback-update': (data) => {
+        if (data && data.isPlaying) setPeerBuffering(null)
+        setPlayback((prev) => ({ ...prev, isPlaying: !!data.isPlaying, currentTime: data.currentTime || 0 }))
+      },
       'session-state': (data) => {
         if (!data) return
         if (data.video) setVideo(data.video)
@@ -190,6 +196,17 @@ export const LiveSessionProvider = ({ children, navigate }) => {
       },
       'invite-to-watch': (data) => {
         if (data) setIncomingInvite(data)
+      },
+      'peer-waiting': (data) => {
+        if (data) {
+          setPeerBuffering({ name: data.name || 'Your partner', currentTime: data.currentTime || 0 })
+          if (peerTimerRef.current) clearTimeout(peerTimerRef.current)
+          peerTimerRef.current = setTimeout(() => setPeerBuffering(null), 20000)
+        }
+      },
+      'peer-ready': () => {
+        if (peerTimerRef.current) clearTimeout(peerTimerRef.current)
+        setPeerBuffering(null)
       }
     }
     Object.entries(handlers).forEach(([event, fn]) => s.on(event, fn))
@@ -202,6 +219,7 @@ export const LiveSessionProvider = ({ children, navigate }) => {
       s.off('connect', onConnect)
       s.off('disconnect', onDisconnect)
       Object.entries(handlers).forEach(([event, fn]) => s.off(event, fn))
+      if (peerTimerRef.current) clearTimeout(peerTimerRef.current)
     }
   }, [sessionId])
 
@@ -282,6 +300,24 @@ export const LiveSessionProvider = ({ children, navigate }) => {
   }, [sessionId])
 
   const clearInvite = useCallback(() => setIncomingInvite(null), [])
+
+  const emitSyncWait = useCallback(
+    (currentTime = 0) => {
+      const s = getSocket()
+      if (!s || !sessionId) return
+      s.emit('sync-wait', { currentTime: currentTime || 0 })
+    },
+    [sessionId]
+  )
+
+  const emitSyncReady = useCallback(
+    (currentTime = 0) => {
+      const s = getSocket()
+      if (!s || !sessionId) return
+      s.emit('sync-ready', { currentTime: currentTime || 0 })
+    },
+    [sessionId]
+  )
 
   const createGroupSession = useCallback(async () => {
     const data = await apiPost('/api/sessions/create', {})
@@ -375,6 +411,7 @@ export const LiveSessionProvider = ({ children, navigate }) => {
       offlineDeadline,
       sessionPaused,
       incomingInvite,
+      peerBuffering,
       openLiveSession,
       leaveSession,
       createGroupSession,
@@ -385,7 +422,9 @@ export const LiveSessionProvider = ({ children, navigate }) => {
       updatePlayback,
       emitTypingStart,
       emitTypingStop,
-      clearInvite
+      clearInvite,
+      emitSyncWait,
+      emitSyncReady
     }),
     [
       session,
@@ -400,6 +439,7 @@ export const LiveSessionProvider = ({ children, navigate }) => {
       offlineDeadline,
       sessionPaused,
       incomingInvite,
+      peerBuffering,
       openLiveSession,
       leaveSession,
       createGroupSession,
@@ -410,7 +450,9 @@ export const LiveSessionProvider = ({ children, navigate }) => {
       updatePlayback,
       emitTypingStart,
       emitTypingStop,
-      clearInvite
+      clearInvite,
+      emitSyncWait,
+      emitSyncReady
     ]
   )
 

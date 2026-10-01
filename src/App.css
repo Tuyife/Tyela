@@ -2275,6 +2275,21 @@
   box-shadow: 0 0 14px rgba(234, 179, 8, 0.5);
 }
 
+.sync-badge.waiting {
+  background: rgba(124, 58, 237, 0.95);
+  box-shadow: 0 0 16px rgba(124, 58, 237, 0.55);
+}
+
+.sync-badge .sync-spin {
+  animation: sync-spin 1s linear infinite;
+}
+
+@keyframes sync-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* ============ Group / connection extras ============ */
 .host-actions {
   display: flex;
