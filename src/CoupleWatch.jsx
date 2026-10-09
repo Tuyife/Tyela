@@ -70,6 +70,15 @@ const CoupleWatch = ({ onNavigate }) => {
               <LuSend size={14} /> Invite to resume
             </button>
           )}
+          {video && (
+            <button
+              className="control-btn"
+              onClick={() => onNavigate('movie-selection')}
+              title="Stop this movie and pick or upload another one"
+            >
+              <LuFilm size={14} /> Change movie
+            </button>
+          )}
           <button className="control-btn" onClick={handleLeave}>
             <LuArrowLeft size={14} /> Leave
           </button>

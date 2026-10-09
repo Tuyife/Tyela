@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { LuArrowLeft, LuCopy, LuFilm } from 'react-icons/lu'
+import { LuArrowLeft, LuCopy, LuFilm, LuRefreshCw } from 'react-icons/lu'
 import { useLiveSession } from './live/LiveSessionContext.jsx'
 import { useUser } from './UserContext.jsx'
 import Avatar from './components/Avatar.jsx'
@@ -39,7 +39,17 @@ const GroupWatch = ({ onNavigate }) => {
           <button className="control-btn" onClick={handleLeave}>
             <LuArrowLeft size={14} /> Leave
           </button>
-          {!video && (
+          {video ? (
+            isHost && (
+              <button
+                className="control-btn"
+                onClick={() => onNavigate('movie-selection')}
+                title="Stop this movie and pick or upload another one"
+              >
+                <LuRefreshCw size={14} /> Change movie
+              </button>
+            )
+          ) : (
             <button className="control-btn" onClick={() => onNavigate('movie-selection')}>
               <LuFilm size={14} /> Choose a movie
             </button>
