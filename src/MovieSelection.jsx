@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import { LuLink, LuUpload, LuFolderOpen, LuImages, LuX, LuArrowLeft, LuCheck, LuUser, LuHeart, LuUsers } from 'react-icons/lu'
 import { setPendingVideo, setPendingLink, setPendingSession } from './videoStore.js'
-import { apiGet, apiPost, API_BASE } from './lib/api.js'
+import { apiGet, apiPost, uploadWithProgress } from './lib/api.js'
 import { attachToSession } from './lib/attachVideo.js'
 import { useLiveSession } from './live/LiveSessionContext.jsx'
 import Avatar from './components/Avatar.jsx'
@@ -10,6 +10,20 @@ import './App.css'
 
 const MAX_UPLOAD_MB = 500
 const VIDEO_EXT_REGEX = /\.(mp4|webm|mov|m4v|ogg|ogv|mkv|avi|wmv|3gp|flv)$/i
+
+const formatBytes = (bytes) => {
+  if (!bytes) return '0 MB'
+  const mb = bytes / (1024 * 1024)
+  return mb >= 1024 ? `${(mb / 1024).toFixed(2)} GB` : `${mb.toFixed(mb < 10 ? 1 : 0)} MB`
+}
+
+const formatEta = (seconds) => {
+  if (seconds == null) return ''
+  if (seconds < 60) return `${seconds}s`
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return s ? `${m}m ${s}s` : `${m}m`
+}
 
 const validateVideo = (file) => {
   if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
@@ -46,7 +60,34 @@ const MovieSelection = ({ onNavigate }) => {
   const [partnerList, setPartnerList] = useState([])
   const [pendingPayload, setPendingPayload] = useState(null)
   const [choosingPartner, setChoosingPartner] = useState(false)
+  const [progress, setProgress] = useState(null)
   const fileInput = useRef(null)
+  const uploadAbort = useRef(null)
+
+  // Begin tracking an upload: fresh AbortController plus an initial 0% state.
+  const makeUploadOpts = () => {
+    const controller = new AbortController()
+    uploadAbort.current = controller
+    setProgress({ percent: 0, loaded: 0, total: 0, etaSeconds: null, bytesPerSecond: 0 })
+    return { signal: controller.signal, onProgress: setProgress }
+  }
+
+  const finishUpload = () => {
+    uploadAbort.current = null
+    setProgress(null)
+  }
+
+  const cancelUpload = () => {
+    if (uploadAbort.current) uploadAbort.current.abort()
+    uploadAbort.current = null
+    setProgress(null)
+    setStarting(false)
+    setError('')
+  }
+
+  // Only file attachments upload; links pass through with no progress options.
+  const attach = (sid, payload) =>
+    attachToSession(sid, payload, payload && payload.file ? makeUploadOpts() : {})
 
   const handlePasteSelect = () => {
     setMode('paste')
@@ -91,7 +132,7 @@ const MovieSelection = ({ onNavigate }) => {
       if (audience === 'group') {
         const created = await apiPost('/api/sessions/create', {})
         const sessionId = created.sessionId
-        await attachToSession(sessionId, payload)
+        await attach(sessionId, payload)
         openLiveSession({ sessionId, mode: 'group', code: created.code, role: 'host' })
         onNavigate('group-watch')
         return
@@ -100,7 +141,7 @@ const MovieSelection = ({ onNavigate }) => {
       const active = await apiGet('/api/sessions/active').catch(() => ({ session: null }))
       if (active.session && active.session.sessionType === 'couple') {
         const sessionId = active.session._id
-        await attachToSession(sessionId, payload)
+        await attach(sessionId, payload)
         openLiveSession({ sessionId, mode: 'couple' })
         onNavigate('couple-watch')
         return
@@ -125,13 +166,14 @@ const MovieSelection = ({ onNavigate }) => {
     } catch (e) {
       setError(friendlyError(e))
       setStarting(false)
+      finishUpload()
     }
   }
 
   const startWithPartner = async (partner, payload) => {
     const start = await apiPost('/api/connection/start', { partnerId: partner.userId })
     if (start && start.sessionId) {
-      await attachToSession(start.sessionId, payload)
+      await attach(start.sessionId, payload)
       openLiveSession({ sessionId: start.sessionId, mode: 'couple', partner: start.partner })
       onNavigate('couple-watch')
       return
@@ -146,6 +188,7 @@ const MovieSelection = ({ onNavigate }) => {
     } catch (e) {
       setError(friendlyError(e))
       setStarting(false)
+      finishUpload()
     }
   }
 
@@ -183,24 +226,24 @@ const MovieSelection = ({ onNavigate }) => {
     if (isLive) {
       setError('')
       setStarting(true)
+      const form = new FormData()
+      form.append('video', selectedFile)
+      form.append('title', theTitle)
       try {
-        const form = new FormData()
-        form.append('video', selectedFile)
-        form.append('title', theTitle)
-        const upRes = await fetch(`${API_BASE}/api/sessions/${sessionId}/upload`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${localStorage.getItem('tyelaToken') || ''}` },
-          body: form
-        })
-        const json = await upRes.json().catch(() => ({}))
-        if (!upRes.ok) throw new Error(json.error || 'Upload failed')
+        const json = await uploadWithProgress(
+          `/api/sessions/${sessionId}/upload`,
+          form,
+          makeUploadOpts()
+        )
+        if (!json.video || !json.video.url) throw new Error('Upload failed')
         if (setSessionVideo) {
           await setSessionVideo({ title: theTitle, url: json.video.url, type: 'upload', duration: 0 })
         }
         onNavigate(targetHub)
       } catch (e) {
-        setError(friendlyError(e))
+        if (!/cancelled/i.test(e.message || '')) setError(friendlyError(e))
       } finally {
+        finishUpload()
         setStarting(false)
       }
       return
@@ -354,6 +397,31 @@ const MovieSelection = ({ onNavigate }) => {
           <div className="input-group">
             <input type="text" placeholder="Video title" value={title} onChange={(e) => setTitle(e.target.value)} />
           </div>
+
+          {starting && progress && (
+            <div className="upload-progress" role="status" aria-live="polite">
+              <div className="upload-progress-bar">
+                <span style={{ width: `${progress ? progress.percent : 0}%` }} />
+              </div>
+              <div className="upload-progress-meta">
+                <span>
+                  {progress && progress.total
+                    ? `${progress.percent}% · ${formatBytes(progress.loaded)} of ${formatBytes(progress.total)}`
+                    : 'Uploading…'}
+                </span>
+                <span>
+                  {progress && progress.etaSeconds != null
+                    ? `about ${formatEta(progress.etaSeconds)} left`
+                    : progress && progress.percent >= 100
+                      ? 'Finishing up…'
+                      : 'Calculating…'}
+                </span>
+              </div>
+              <button type="button" className="btn-secondary" onClick={cancelUpload}>
+                Cancel upload
+              </button>
+            </div>
+          )}
 
           <button className="btn-primary" onClick={handleStartUpload} disabled={starting}>
             {starting ? 'Uploading…' : 'Upload and start'}

@@ -1,4 +1,4 @@
-import { API_BASE } from './api.js'
+import { API_BASE, uploadWithProgress } from './api.js'
 
 function authHeaders() {
   return {
@@ -7,19 +7,14 @@ function authHeaders() {
   }
 }
 
-export async function buildVideoInfo(sessionId, payload) {
+export async function buildVideoInfo(sessionId, payload, opts = {}) {
   let url = payload.url
   if (payload.file) {
     const form = new FormData()
     form.append('video', payload.file)
     if (payload.title) form.append('title', payload.title)
-    const res = await fetch(`${API_BASE}/api/sessions/${sessionId}/upload`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${localStorage.getItem('tyelaToken') || ''}` },
-      body: form
-    })
-    const json = await res.json().catch(() => ({}))
-    if (!res.ok) throw new Error(json.error || 'Upload failed')
+    const json = await uploadWithProgress(`/api/sessions/${sessionId}/upload`, form, opts)
+    if (!json.video || !json.video.url) throw new Error('Upload failed')
     url = json.video.url
   }
   return {
@@ -30,9 +25,9 @@ export async function buildVideoInfo(sessionId, payload) {
   }
 }
 
-export async function attachToSession(sessionId, payload) {
+export async function attachToSession(sessionId, payload, opts = {}) {
   if (!sessionId) throw new Error('No active session')
-  const info = await buildVideoInfo(sessionId, payload)
+  const info = await buildVideoInfo(sessionId, payload, opts)
   const res = await fetch(`${API_BASE}/api/sessions/${sessionId}/video`, {
     method: 'POST',
     headers: authHeaders(),
