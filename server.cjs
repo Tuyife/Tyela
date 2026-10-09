@@ -157,7 +157,7 @@ io.on('connection', (socket) => {
     })
     .catch(() => {})
 
-  socket.on('join-session', ({ sessionId }) => {
+  socket.on('join-session', ({ sessionId } = {}) => {
     if (!sessionId) return
     const room = `session:${sessionId}`
     socket.join(room)
@@ -186,7 +186,7 @@ io.on('connection', (socket) => {
     closeSession()
   })
 
-  socket.on('play-video', ({ currentTime }) => {
+  socket.on('play-video', ({ currentTime } = {}) => {
     const sessionId = socket.sessionId
     if (!sessionId) return
     updateDb(sessionId, {
@@ -195,7 +195,7 @@ io.on('connection', (socket) => {
     io.to(`session:${sessionId}`).emit('playback-update', { isPlaying: true, currentTime: currentTime || 0 })
   })
 
-  socket.on('pause-video', ({ currentTime }) => {
+  socket.on('pause-video', ({ currentTime } = {}) => {
     const sessionId = socket.sessionId
     if (!sessionId) return
     updateDb(sessionId, {
@@ -204,7 +204,7 @@ io.on('connection', (socket) => {
     io.to(`session:${sessionId}`).emit('playback-update', { isPlaying: false, currentTime: currentTime || 0 })
   })
 
-  socket.on('seek-video', ({ currentTime }) => {
+  socket.on('seek-video', ({ currentTime } = {}) => {
     const sessionId = socket.sessionId
     if (!sessionId) return
     updateDb(sessionId, {
@@ -213,7 +213,7 @@ io.on('connection', (socket) => {
     io.to(`session:${sessionId}`).emit('playback-update', { isPlaying: false, currentTime: currentTime || 0 })
   })
 
-  socket.on('sync-wait', ({ currentTime }) => {
+  socket.on('sync-wait', ({ currentTime } = {}) => {
     const sessionId = socket.sessionId
     const room = sessionId ? `session:${sessionId}` : null
     if (!room) return
@@ -224,7 +224,7 @@ io.on('connection', (socket) => {
     })
   })
 
-  socket.on('sync-ready', ({ currentTime }) => {
+  socket.on('sync-ready', ({ currentTime } = {}) => {
     const sessionId = socket.sessionId
     const room = sessionId ? `session:${sessionId}` : null
     if (!room) return
@@ -235,9 +235,9 @@ io.on('connection', (socket) => {
     })
   })
 
-  socket.on('send-message', ({ content, movieTimestamp }) => {
+  socket.on('send-message', ({ content, movieTimestamp } = {}) => {
     const sessionId = socket.sessionId
-    if (!sessionId || !content || !content.trim()) return
+    if (!sessionId || typeof content !== 'string' || !content.trim()) return
     const msg = {
       _id: new mongoose.Types.ObjectId(),
       senderId: userId,
@@ -390,6 +390,19 @@ function connectWithRetry() {
     })
 }
 connectWithRetry()
+
+// A stray rejected promise must not take the whole API down (Node exits on
+// unhandled rejections by default, which manifested as the service stopping and
+// restarting). Log it and keep serving. A genuine uncaught exception means the
+// process may be in an unknown state, so log and exit for a clean restart.
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled promise rejection:', reason)
+})
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception, exiting for a clean restart:', err)
+  process.exit(1)
+})
 
 server.listen(PORT, () => {
   console.log(`TYELA server running on port ${PORT}`)
